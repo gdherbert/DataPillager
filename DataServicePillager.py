@@ -322,6 +322,8 @@ def main():
                                 feature_OIDs.sort()
                                 # chunk them
                                 for group in grouper(feature_OIDs, max_record_count):
+                                    # reset count_tries
+                                    count_tries = 0
                                     start_oid = group[0]
                                     end_oid = group[max_record_count-1]
                                     if end_oid is None: # reached the end of the iterables
