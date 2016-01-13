@@ -220,9 +220,10 @@ def main():
 
             authhandler = urllib2.HTTPBasicAuthHandler(passman)
             # create the AuthHandler
-
             opener = urllib2.build_opener(authhandler)
-
+            # spoof user agent
+            opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+            
             urllib2.install_opener(opener)
             # All calls to urllib2.urlopen will now use our handler
             # Make sure not to include the protocol in with the URL, or
@@ -233,7 +234,12 @@ def main():
 
             # need to generate a new token
             token = gentoken(username, password, refer)
-
+        else:
+            #build a generic opener with the use agent spoofed
+            opener = urllib2.build_opener()
+            opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+            urllib2.install_opener(opener)
+            
         if username and (token == ""):
             output_msg("Avast! The scurvy gatekeeper says 'Could not generate a token with the username and password provided'.", severity=2)
 
