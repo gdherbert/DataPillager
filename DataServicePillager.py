@@ -272,8 +272,11 @@ def main():
                 final_geofile = ''
 
                 output_msg("Now pillagin' yer data from {0}".format(slyr))
+                if slyr == service_endpoint: # no need to get it again
+                    service_info = service_layer_info
+                else:
+                    service_info = json.loads(urllib2.urlopen(slyr + '?f=json&token=' + token).read())
 
-                service_info = json.loads(urllib2.urlopen(slyr + '?f=json&token=' + token).read())
                 if not service_info.get('error'):
                     service_name = service_info.get('name')
 
