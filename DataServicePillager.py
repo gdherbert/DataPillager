@@ -66,7 +66,6 @@ def output_msg(msg, severity=0):
 
 def gentoken(username, password, referer, expiration=240):
     """ Get access token.
-
         :param username: valid username
         :param passowrd: valid password
         :param referer: valid referer url (eg "https://www.arcgis.com")
@@ -221,15 +220,14 @@ def main():
             authhandler = urllib2.HTTPBasicAuthHandler(passman)
             # create the AuthHandler
             opener = urllib2.build_opener(authhandler)
-            # spoof user agent
+            # user agent spoofing
             opener.addheaders = [('User-agent', 'Mozilla/5.0')]
-            
+
             urllib2.install_opener(opener)
             # All calls to urllib2.urlopen will now use our handler
             # Make sure not to include the protocol in with the URL, or
             # HTTPPasswordMgrWithDefaultRealm will be very confused.
             # You must (of course) use it when fetching the page though.
-
             # authentication is now handled automatically in urllib2.urlopen
 
             # need to generate a new token
@@ -239,7 +237,7 @@ def main():
             opener = urllib2.build_opener()
             opener.addheaders = [('User-agent', 'Mozilla/5.0')]
             urllib2.install_opener(opener)
-            
+
         if username and (token == ""):
             output_msg("Avast! The scurvy gatekeeper says 'Could not generate a token with the username and password provided'.", severity=2)
 
@@ -421,6 +419,7 @@ def main():
     except Exception, e:
         output_msg("ERROR: " + str(e), severity=2)
         output_msg(arcpy.GetMessages())
+
     finally:
         end_time = datetime.datetime.today()
         elapsed_time = end_time - start_time
