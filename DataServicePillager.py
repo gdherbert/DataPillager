@@ -101,14 +101,15 @@ def get_data(query):
         Automatically retries up to max_tries times.
     """
     global count_tries
-    max_tries = 5
+    global max_tries
+    global sleep_time
     try:
         response = urllib2.urlopen(query).read()
         return response
     except Exception, e:
         output_msg(str(e),severity=1)
         # sleep and try again
-        time.sleep(5)
+        time.sleep(sleep_time)
         count_tries += 1
         if count_tries > max_tries:
             count_tries = 0
@@ -165,10 +166,15 @@ def main():
         # arcgis toolbox parameters
         service_endpoint = arcpy.GetParameterAsText(0) # Service endpoint
         output_workspace = arcpy.GetParameterAsText(1) # folder to put the results
-        username = arcpy.GetParameterAsText(2) # optional
-        password = arcpy.GetParameterAsText(3) # optional
-        referring_domain = arcpy.GetParameterAsText(4) # optional
-        existing_token = arcpy.GetParameterAsText(5) # optional
+        max_tries = arcpy.GetParameter(2) # required - max number of retries allowed
+        sleep_time = arcpy.GetParameter(3) # required - max number of retries allowed
+        username = arcpy.GetParameterAsText(4) # optional
+        password = arcpy.GetParameterAsText(5) # optional
+        referring_domain = arcpy.GetParameterAsText(6) # optional
+        existing_token = arcpy.GetParameterAsText(7) # optional
+
+
+        # to query by geometry need [xmin,ymin,xmax,ymax], spatial reference, and geometryType (eg esriGeometryEnvelope
 
         if service_endpoint == '':
             output_msg("Avast! Can't plunder nothing from an empty url! Time to quit.")
@@ -186,6 +192,9 @@ def main():
             output_folder = output_desc.path
 
         token = existing_token # if not supplied is ''
+
+        if not max_tries: # set default
+            max_tries = 5
 
         if username:
             # set referring domain if supplied
@@ -306,6 +315,8 @@ def main():
                                 if field.get('type') == 'esriFieldTypeOID':
                                     objectid_field = field.get('name')
                                     break
+
+                            # to query using geometry,&geometry=   &geometryType= esriGeometryEnvelope &inSR= and probably spatial relationship and buffering
 
                             feat_count_query = r"/query?where=" + objectid_field + r"+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=true&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=pjson&token=" + token
                             feat_OIDLIST_query = r"/query?where=" + objectid_field + r"+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=true&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=pjson&token=" + token
