@@ -256,17 +256,25 @@ def main():
 
             service_layers_to_get = []
             # other variables, calculated from the service
-            service_layer_info = json.loads(urllib2.urlopen(service_endpoint + '?f=json&token=' + token).read())
+            service_call = urllib2.urlopen(service_endpoint + '?f=json&token=' + token).read()
+            if service_call:
+                service_layer_info = json.loads(service_call)
+            else:
+                raise Exception("'service_call' failed to access {0}".format(service_endpoint))
+
             # for getting all the layers
             service_layers = service_layer_info.get('layers')
             if service_layers is not None:
                 # has sub layers, get em all
                 for lyr in service_layers:
-                    lyr_id = lyr.get('id')
-                    service_layers_to_get.append(service_endpoint + '/' + str(lyr_id))
+                    if not lyr.get('subLayerIds'):
+                        lyr_id = lyr.get('id')
+                        service_layers_to_get.append(service_endpoint + '/' + str(lyr_id))
             else:
                 # no sub layers
                 service_layers_to_get.append(service_endpoint)
+            for lyr in service_layers_to_get:
+                output_msg('Found {0}'.format(lyr))
 
             for slyr in service_layers_to_get:
                 global count_tries
@@ -282,7 +290,11 @@ def main():
                 if slyr == service_endpoint: # no need to get it again
                     service_info = service_layer_info
                 else:
-                    service_info = json.loads(urllib2.urlopen(slyr + '?f=json&token=' + token).read())
+                    service_info_call = urllib2.urlopen(slyr + '?f=json&token=' + token).read()
+                    if service_info_call:
+                        service_info = json.loads(service_info_call)
+                    else:
+                        raise Exception("'service_info_call' failed to access {0}".format(slyr))
 
                 if not service_info.get('error'):
                     service_name = service_info.get('name')
@@ -300,21 +312,27 @@ def main():
                         output_msg("Yar! Service info stashed: {0}".format(info_file))
 
                     supports_json = False
-                    supported_formats = service_info.get('supportedQueryFormats').split(",")
-                    for data_format in supported_formats:
-                        if data_format == "JSON":
-                            supports_json = True
-                            break
+                    if 'supportedQueryFormats' in service_info:
+                        supported_formats = service_info.get('supportedQueryFormats').split(",")
+                        for data_format in supported_formats:
+                            if data_format == "JSON":
+                                supports_json = True
+                                break
+                    else:
+                        output_msg('Unable to check supported formats')
 
                     if supports_json == True:
                         try:
                             # loop through fields in service_info, get objectID field
                             objectid_field = "OBJECTID"
-                            field_list = service_info.get('fields')
-                            for field in field_list:
-                                if field.get('type') == 'esriFieldTypeOID':
-                                    objectid_field = field.get('name')
-                                    break
+                            if 'fields' in service_info:
+                                field_list = service_info.get('fields')
+                                for field in field_list:
+                                    if field.get('type') == 'esriFieldTypeOID':
+                                        objectid_field = field.get('name')
+                                        break
+                            else:
+                                output_msg("No field list returned - forging ahead with {0}".format(objectid_field))
 
                             # to query using geometry,&geometry=   &geometryType= esriGeometryEnvelope &inSR= and probably spatial relationship and buffering
 
