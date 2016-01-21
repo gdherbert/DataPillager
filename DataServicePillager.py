@@ -1,7 +1,8 @@
+# -*- coding: utf-8 -*-
 #-------------------------------------------------------------------------------
 # Purpose:     Extract data from an ArcGIS Service, in chunks defined by
 #              the service Max Record Count to get around that limitation.
-#              Assumes JSON is supported by the service
+#              Requires that JSON is supported by the service
 #
 # Author:      Grant Herbert
 #
@@ -98,13 +99,15 @@ def gentoken(username, password, referer, expiration=240):
 
 def get_data(query):
     """ Download the data.
+        Returns a unicode string
         Automatically retries up to max_tries times.
     """
     global count_tries
     global max_tries
     global sleep_time
     try:
-        response = urllib2.urlopen(query).read()
+        response = urllib2.urlopen(query).read() #get a byte str by default
+        response = response.decode('unicode-escape') # convert to unicode
         return response
     except Exception, e:
         output_msg(str(e),severity=1)
@@ -113,7 +116,7 @@ def get_data(query):
         count_tries += 1
         if count_tries > max_tries:
             count_tries = 0
-            return "ACCESS_FAILED"
+            return u"ACCESS_FAILED"
         else:
             output_msg("Attempt {0} of {1}".format(count_tries, max_tries))
             return get_data(query)
@@ -369,7 +372,7 @@ def main():
                                     # response is a string of json with the attr and geom
                                     query = slyr + feat_query + where_clause
                                     response = get_data(query)
-                                    if response == 'ACCESS_FAILED':
+                                    if response == u'ACCESS_FAILED':
                                         # break out
                                         raise ValueError("Abandon ship! Data access failed! Check what ye manag'd to plunder before failure.")
                                     else:
@@ -393,7 +396,7 @@ def main():
                                             out_geofile = os.path.join(output_workspace, out_file_name)
 
                                             with open(out_JSON_file, 'w') as out_file:
-                                                out_file.write(response)
+                                                out_file.write(response)#.encode('utf-8'))
 
                                             # write temp output
                                             output_msg("Nabbed some data fer ye: '{0}', oids {1} to {2}".format(out_file_name, start_oid, end_oid))
