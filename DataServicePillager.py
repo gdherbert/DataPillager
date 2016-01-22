@@ -98,7 +98,7 @@ def gentoken(username, password, referer, expiration=240):
     tokenUrl = referer + r"/sharing/rest/generateToken"
 
     tokenResponse = urllib.urlopen(tokenUrl, urllib.urlencode(query_dict))
-    token = json.loads(tokenResponse.read())
+    token = json.loads(tokenResponse.read(), strict=False)
 
     if "error" in token:
         output_msg(token["error"], severity=2)
@@ -294,7 +294,7 @@ def main():
             # other variables, calculated from the service
             service_call = urllib2.urlopen(service_endpoint + '?f=json&token=' + token).read()
             if service_call:
-                service_layer_info = json.loads(service_call)
+                service_layer_info = json.loads(service_call, strict=False)
             else:
                 raise Exception("'service_call' failed to access {0}".format(service_endpoint))
 
@@ -327,7 +327,7 @@ def main():
                 else:
                     service_info_call = urllib2.urlopen(slyr + '?f=json&token=' + token).read()
                     if service_info_call:
-                        service_info = json.loads(service_info_call)
+                        service_info = json.loads(service_info_call, strict=False)
                     else:
                         raise Exception("'service_info_call' failed to access {0}".format(slyr))
 
@@ -371,9 +371,9 @@ def main():
 
                             # to query using geometry,&geometry=   &geometryType= esriGeometryEnvelope &inSR= and probably spatial relationship and buffering
 
-                            feat_count_query = r"/query?where=" + objectid_field + r"+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=true&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=pjson&token=" + token
-                            feat_OIDLIST_query = r"/query?where=" + objectid_field + r"+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=true&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=pjson&token=" + token
-                            feat_query = r"/query?objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=pjson&token=" + token
+                            feat_count_query = r"/query?where=" + objectid_field + r"+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=true&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json&token=" + token
+                            feat_OIDLIST_query = r"/query?where=" + objectid_field + r"+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=true&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json&token=" + token
+                            feat_query = r"/query?objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json&token=" + token
 
                             max_record_count = service_info.get('maxRecordCount') # maximum number of records returned by service at once
                             feature_count = json.loads(urllib2.urlopen(slyr + feat_count_query).read())["count"]
@@ -408,7 +408,7 @@ def main():
                                         # break out
                                         raise ValueError("Abandon ship! Data access failed! Check what ye manag'd to plunder before failure.")
                                     else:
-                                        feature_dict = json.loads(response)["features"] # load the features so we can check they are not empty
+                                        feature_dict = json.loads(response, strict=False)["features"] # load the features so we can check they are not empty
 
                                         if len(feature_dict) != 0:
                                             # convert response to json file on disk then to shapefile (is fast)
