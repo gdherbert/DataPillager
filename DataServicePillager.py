@@ -415,24 +415,23 @@ def main():
                                             out_JSON_name = service_name_cl + "_" + str(current_iter) + ".json"
                                             out_JSON_file = os.path.join(output_folder, out_JSON_name)
 
-                                            # in-memory version
-                                            ##temp_output = "in_memory\\"
-                                            ##out_file_name = service_name_cl + "_" + str(current_iter)
-                                            ##out_geofile = os.path.join(temp_output, out_file_name)
+                                            with open(out_JSON_file, 'w') as out_file:
+                                                out_file.write(response.encode('utf-8')) #back from unicode
+
+                                            output_msg("Nabbed some json data fer ye: '{0}', oids {1} to {2}".format(out_file_name, start_oid, end_oid))
 
                                             if output_type == "Folder":
                                                 out_file_name = service_name_cl + "_" + str(current_iter) + ".shp"
                                             else:
                                                 out_file_name = service_name_cl + "_" + str(current_iter)
+                                            # in-memory version
+                                            ##temp_output = "in_memory\\"
+                                            ##out_file_name = service_name_cl + "_" + str(current_iter)
+                                            ##out_geofile = os.path.join(temp_output, out_file_name)
 
                                             out_geofile = os.path.join(output_workspace, out_file_name)
 
-                                            with open(out_JSON_file, 'w') as out_file:
-                                                out_file.write(response.encode('utf-8')) #back from unicode
-
-                                            # write temp output
-                                            output_msg("Nabbed some data fer ye: '{0}', oids {1} to {2}".format(out_file_name, start_oid, end_oid))
-
+                                            output_msg("Converting json to {0}".format(out_geofile))
                                             arcpy.JSONToFeatures_conversion(out_JSON_file, out_geofile)
                                             out_shapefile_list.append(out_geofile)
                                             os.remove(out_JSON_file) # clean up the JSON file
