@@ -418,7 +418,7 @@ def main():
                                             with open(out_JSON_file, 'w') as out_file:
                                                 out_file.write(response.encode('utf-8')) #back from unicode
 
-                                            output_msg("Nabbed some json data fer ye: '{0}', oids {1} to {2}".format(out_file_name, start_oid, end_oid))
+                                            output_msg("Nabbed some json data fer ye: '{0}', oids {1} to {2}".format(out_JSON_name, start_oid, end_oid))
 
                                             if output_type == "Folder":
                                                 out_file_name = service_name_cl + "_" + str(current_iter) + ".shp"
