@@ -203,6 +203,7 @@ def main():
         password = arcpy.GetParameterAsText(5)
         referring_domain = arcpy.GetParameterAsText(6) # auth domain
         existing_token = arcpy.GetParameterAsText(7) # valid token value
+        strict_mode = arcpy.GetParameter(7) # JSON check required
 
         # to query by geometry need [xmin,ymin,xmax,ymax], spatial reference, and geometryType (eg esriGeometryEnvelope
 
@@ -346,15 +347,20 @@ def main():
                         json.dump(service_info, f, sort_keys=True, indent=4, separators=(',', ': '))
                         output_msg("Yar! Service info stashed: {0}".format(info_file))
 
-                    supports_json = False
-                    if 'supportedQueryFormats' in service_info:
-                        supported_formats = service_info.get('supportedQueryFormats').split(",")
-                        for data_format in supported_formats:
-                            if data_format == "JSON":
-                                supports_json = True
-                                break
+                    if strict_mode:
+                        # check JSON supported
+                        supports_json = False
+                        if 'supportedQueryFormats' in service_info:
+                            supported_formats = service_info.get('supportedQueryFormats').split(",")
+                            for data_format in supported_formats:
+                                if data_format == "JSON":
+                                    supports_json = True
+                                    break
+                        else:
+                            output_msg('Unable to check supported formats. Check {0} for details'.format(info_file))
                     else:
-                        output_msg('Unable to check supported formats')
+                        # assume JSON supported
+                        supports_json = True
 
                     if supports_json == True:
                         try:
