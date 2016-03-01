@@ -196,14 +196,14 @@ def main():
     try:
         # arcgis toolbox parameters
         service_endpoint = arcpy.GetParameterAsText(0) # Service endpoint
-        output_workspace = arcpy.GetParameterAsText(1) # folder to put the results
+        output_workspace = arcpy.GetParameterAsText(1) # gdb/folder to put the results
         max_tries = arcpy.GetParameter(2) # max number of retries allowed
         sleep_time = arcpy.GetParameter(3) # max number of retries allowed
         username = arcpy.GetParameterAsText(4)
         password = arcpy.GetParameterAsText(5)
         referring_domain = arcpy.GetParameterAsText(6) # auth domain
         existing_token = arcpy.GetParameterAsText(7) # valid token value
-        strict_mode = arcpy.GetParameter(7) # JSON check required
+        strict_mode = arcpy.GetParameter(7) # JSON check required True/False
 
         # to query by geometry need [xmin,ymin,xmax,ymax], spatial reference, and geometryType (eg esriGeometryEnvelope
 
@@ -211,7 +211,7 @@ def main():
             output_msg("Avast! Can't plunder nothing from an empty url! Time to quit.")
             sys.exit()
 
-        if not type(max_tries) is int: # set default
+        if not type(max_tries) is int:
             max_tries = int(max_tries)
 
         if not type(sleep_time) is int:
@@ -275,6 +275,9 @@ def main():
             # HTTPPasswordMgrWithDefaultRealm will be very confused.
             # You must (of course) use it when fetching the page though.
             # authentication is now handled automatically in urllib2.urlopen
+
+            # add proxy handling?
+            # issue where a proxy may not be picked up
 
             # need to generate a new token
             token = gentoken(username, password, refer)
@@ -375,21 +378,21 @@ def main():
                             else:
                                 output_msg("No field list returned - forging ahead with {0}".format(objectid_field))
 
-                            # to query using geometry,&geometry=   &geometryType= esriGeometryEnvelope &inSR= and probably spatial relationship and buffering
-
-                            feat_count_query = r"/query?where=" + objectid_field + r"+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=true&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json&token=" + token
                             feat_OIDLIST_query = r"/query?where=" + objectid_field + r"+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=true&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json&token=" + token
+
+                            # to query using geometry,&geometry=   &geometryType= esriGeometryEnvelope &inSR= and probably spatial relationship and buffering
                             feat_query = r"/query?objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json&token=" + token
 
                             max_record_count = service_info.get('maxRecordCount') # maximum number of records returned by service at once
-                            feature_count = json.loads(urllib2.urlopen(slyr + feat_count_query).read())["count"]
-                            sortie_count = feature_count//max_record_count + (feature_count % max_record_count > 0)
-                            output_msg("{0} records, in chunks of {1}, err, that be {2} sorties".format(feature_count, max_record_count, sortie_count))
 
                             # extract using actual OID values is the safest way
                             feature_OIDs = json.loads(urllib2.urlopen(slyr + feat_OIDLIST_query).read())["objectIds"]
 
                             if feature_OIDs:
+                                feature_count = len(feature_OIDs)
+                                sortie_count = feature_count//max_record_count + (feature_count % max_record_count > 0)
+                                output_msg("{0} records, in chunks of {1}, err, that be {2} sorties".format(feature_count, max_record_count, sortie_count))
+
                                 feature_OIDs.sort()
                                 # chunk them
                                 for group in grouper(feature_OIDs, max_record_count):
