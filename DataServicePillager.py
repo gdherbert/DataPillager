@@ -113,7 +113,7 @@ def gentoken(username, password, referer, expiration=240):
 
 def get_data(query):
     """ Download the data.
-        Returns a unicode string (utf-8)
+        Return a JSON object
         Automatically retries up to max_tries times.
     """
     global count_tries
@@ -128,7 +128,13 @@ def get_data(query):
                 response = response.decode('utf-8') # convert to unicode
             except UnicodeDecodeError:
                 response = response.decode('unicode-escape') # convert to unicode
-        return response
+        #load to json and check for error
+        resp_json = json.loads(response)
+        if resp_json.get('error'):
+            output_msg(resp_json['error'])
+            return None
+        else:
+            return response
 
     except Exception, e:
         output_msg(str(e),severity=1)
@@ -140,7 +146,7 @@ def get_data(query):
         count_tries += 1
         if count_tries > max_tries:
             count_tries = 0
-            return u"ACCESS_FAILED"
+            return u'{"error": "ACCESS_FAILED"}'
         else:
             output_msg("Attempt {0} of {1}".format(count_tries, max_tries))
             return get_data(query)
@@ -341,14 +347,14 @@ def main():
                     # clean up the service name (remove invalid characters)
                     service_name_cl = service_name.encode('ascii', 'ignore') # strip any non-ascii characters that may cause an issue
                     service_name_cl = arcpy.ValidateTableName(service_name) # remove any other problematic characters
-                    output_msg("'{0}' will be stashed as '{1}'".format(service_name, service_name_cl))
+                    ##output_msg("'{0}' will be stashed as '{1}'".format(service_name, service_name_cl))
 
                     # write out the service info for reference
                     info_filename = service_name_cl + "_info.txt"
                     info_file = os.path.join(output_folder, info_filename)
                     with open(info_file, 'w') as f:
                         json.dump(service_info, f, sort_keys=True, indent=4, separators=(',', ': '))
-                        output_msg("Yar! Service info stashed: {0}".format(info_file))
+                        output_msg("Yar! {0} Service info stashed in '{1}'".format(service_name, info_file))
 
                     if strict_mode:
                         # check JSON supported
@@ -391,7 +397,7 @@ def main():
                             if feature_OIDs:
                                 feature_count = len(feature_OIDs)
                                 sortie_count = feature_count//max_record_count + (feature_count % max_record_count > 0)
-                                output_msg("{0} records, in chunks of {1}, err, that be {2} sorties".format(feature_count, max_record_count, sortie_count))
+                                output_msg("{0} records, in chunks of {1}, err, that be {2} sorties. Ready lads!".format(feature_count, max_record_count, sortie_count))
 
                                 feature_OIDs.sort()
                                 # chunk them
@@ -412,8 +418,8 @@ def main():
                                     where_clause = "&where={0}+%3E%3D+{1}+AND+{2}+%3C%3D+{3}".format(objectid_field, str(start_oid), objectid_field, str(end_oid))
                                     # response is a string of json with the attr and geom
                                     query = slyr + feat_query + where_clause
-                                    response = get_data(query) # expects unicode
-                                    if not response or (response == 'ACCESS_FAILED'):
+                                    response = get_data(query) # expects json object. An error will return none
+                                    if not response or not response.get('features'):
                                         # break out
                                         raise ValueError("Abandon ship! Data access failed! Check what ye manag'd to plunder before failure.")
                                     else:
