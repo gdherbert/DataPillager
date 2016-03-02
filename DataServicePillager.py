@@ -212,6 +212,10 @@ def main():
         strict_mode = arcpy.GetParameter(7) # JSON check required True/False
 
         # to query by geometry need [xmin,ymin,xmax,ymax], spatial reference, and geometryType (eg esriGeometryEnvelope
+        # format for query
+        # {"xmin": -13861884.4661,"ymin": 5160495.153499998,"xmax": -13017204.3338,"ymax": 5811351.175300002,"spatialReference": {"latestWkid": 3857,"wkid": 102100}}
+        # geometry inputs - feature class? string?
+        # also geometrytype and spatial relationship needed.
 
         if service_endpoint == '':
             output_msg("Avast! Can't plunder nothing from an empty url! Time to quit.")
@@ -386,7 +390,12 @@ def main():
 
                             feat_OIDLIST_query = r"/query?where=" + objectid_field + r"+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=true&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json&token=" + token
 
-                            # to query using geometry,&geometry=   &geometryType= esriGeometryEnvelope &inSR= and probably spatial relationship and buffering
+                            # to query using geometry
+                            # geometry={"xmin": -13861884.4661,"ymin": 5160495.153499998,"xmax": -13017204.3338,"ymax": 5811351.175300002,"spatialReference": {"latestWkid": 3857,"wkid": 102100}}
+                            # &geometryType=esriGeometryEnvelope
+                            # &spatialRel=esriSpatialRelIntersects
+                            # &inSR= and probably spatial relationship and buffering
+                            # instead of all outFields with *, use field_list?
                             feat_query = r"/query?objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json&token=" + token
 
                             max_record_count = service_info.get('maxRecordCount') # maximum number of records returned by service at once
