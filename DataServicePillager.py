@@ -128,20 +128,22 @@ def get_data(query):
                 response = response.decode('utf-8') # convert to unicode
             except UnicodeDecodeError:
                 response = response.decode('unicode-escape') # convert to unicode
-        #load to json and check for error
-        resp_json = json.loads(response)
-        if resp_json.get('error'):
-            output_msg(resp_json['error'])
-            return None
+            #load to json and check for error
+            resp_json = json.loads(response)
+            if resp_json.get('error'):
+                output_msg(resp_json['error'])
+                response = None
+            else:
+                return resp_json
         else:
-            return response
+            return None
 
     except Exception, e:
         output_msg(str(e),severity=1)
         # sleep and try again
-        if e.errno == 10054:
-            #connection forcible closed, extra sleep pause
-            time.sleep(sleep_time)
+        if hasattr(e, 'errno') and e.errno == 10054:
+                #connection forcible closed, extra sleep pause
+                time.sleep(sleep_time)
         time.sleep(sleep_time)
         count_tries += 1
         if count_tries > max_tries:
@@ -423,15 +425,19 @@ def main():
                                         # break out
                                         raise ValueError("Abandon ship! Data access failed! Check what ye manag'd to plunder before failure.")
                                     else:
-                                        feature_dict = json.loads(response, strict=False)["features"] # load the features so we can check they are not empty
+                                        feature_dict = response["features"] # load the features so we can check they are not empty
 
                                         if len(feature_dict) != 0:
                                             # convert response to json file on disk then to shapefile (is fast)
                                             out_JSON_name = service_name_cl + "_" + str(current_iter) + ".json"
                                             out_JSON_file = os.path.join(output_folder, out_JSON_name)
 
+                                            #with open(out_JSON_file, 'w') as out_file:
+                                            #    out_file.write(response.encode('utf-8')) #back from unicode
+
                                             with open(out_JSON_file, 'w') as out_file:
-                                                out_file.write(response.encode('utf-8')) #back from unicode
+                                                data = json.dumps(response, ensure_ascii=False, encoding='utf-8')
+                                                out_file.write(data)
 
                                             output_msg("Nabbed some json data fer ye: '{0}', oids {1} to {2}".format(out_JSON_name, start_oid, end_oid))
 
@@ -502,7 +508,7 @@ def main():
         output_msg("ERROR: " + str(e), severity=2)
 
     except Exception, e:
-        if e.errno == 10054:
+        if hasattr(e, 'errno') and e.errno == 10054:
             output_msg("ERROR: " + str(e), severity=2)
         else:
             line, err = trace()
