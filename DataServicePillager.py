@@ -310,6 +310,11 @@ def main():
             else:
                 raise Exception("'service_call' failed to access {0}".format(service_endpoint))
 
+            # catch root url entered
+            service_list = service_layer_info.get('services')
+            if service_list: 
+                raise ValueError("Unable to pillage a service root url at this time. Enter a FeatureServer layer url!")
+
             # for getting all the layers
             service_layers = service_layer_info.get('layers')
             if service_layers is not None:
