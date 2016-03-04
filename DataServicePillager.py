@@ -348,7 +348,7 @@ def main():
 
                     # clean up the service name (remove invalid characters)
                     service_name_cl = service_name.encode('ascii', 'ignore') # strip any non-ascii characters that may cause an issue
-                    service_name_cl = arcpy.ValidateTableName(service_name) # remove any other problematic characters
+                    service_name_cl = arcpy.ValidateTableName(service_name, output_workspace) # remove any other problematic characters
                     ##output_msg("'{0}' will be stashed as '{1}'".format(service_name, service_name_cl))
 
                     # write out the service info for reference
