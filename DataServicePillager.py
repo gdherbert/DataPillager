@@ -312,20 +312,20 @@ def main():
 
             # for getting all the layers
             service_list = service_layer_info.get('services')
-            if service_list:
-                output_msg("Unable to pillage a service root url at this time. Enter a FeatureServer layer url!")
+            if service_list: #array
+                raise ValueError("Unable to pillage a service root url at this time. Enter a FeatureServer layer url!")
                 # get the urls and make a call to get the layers in each
                ## "services" : [
                ## {
-               ##   "name" : "5_foot_contours", 
-               ##   "type" : "FeatureServer", 
+               ##   "name" : "5_foot_contours",
+               ##   "type" : "FeatureServer",
                ##   "url" : "http://services2.arcgis.com/ZASkNq1SMoPvFBOv/ArcGIS/rest/services/5_foot_contours/FeatureServer"
-               ## }, 
+               ## },
                ## {
-               ##   "name" : "Critical_Areas", 
-               ##   "type" : "FeatureServer", 
+               ##   "name" : "Critical_Areas",
+               ##   "type" : "FeatureServer",
                ##   "url" : "http://services2.arcgis.com/ZASkNq1SMoPvFBOv/ArcGIS/rest/services/Critical_Areas/FeatureServer"
-               ## }] 
+               ## }]
                 #service_layers
                 #for service in service_list:
                 #    service_layers
