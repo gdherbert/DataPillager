@@ -11,7 +11,7 @@
 # Licence:     MIT License
 #-------------------------------------------------------------------------------
 """
-THis software is designed for use with ArcGIS as a toolbox tool.
+This software is designed for use with ArcGIS as a toolbox tool.
 
 This software is distributed with an MIT License.
 
@@ -211,7 +211,7 @@ def main():
         password = arcpy.GetParameterAsText(5)
         referring_domain = arcpy.GetParameterAsText(6) # auth domain
         existing_token = arcpy.GetParameterAsText(7) # valid token value
-        strict_mode = arcpy.GetParameter(7) # JSON check required True/False
+        strict_mode = arcpy.GetParameter(8) # JSON check required True/False
 
         # to query by geometry need [xmin,ymin,xmax,ymax], spatial reference, and geometryType (eg esriGeometryEnvelope
 
@@ -312,7 +312,7 @@ def main():
 
             # catch root url entered
             service_list = service_layer_info.get('services')
-            if service_list: 
+            if service_list:
                 raise ValueError("Unable to pillage a service root url at this time. Enter a FeatureServer layer url!")
 
             # for getting all the layers
