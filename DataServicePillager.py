@@ -15,7 +15,7 @@ This software is designed for use with ArcGIS as a toolbox tool.
 
 This software is distributed with an MIT License.
 
-THIS SOFTWARE IS SUPPLIED AS-IS, WITH NO WARRANTY OR GARANTEE, EXPLICT OR IMPLICIT. THE AUTHORS
+THIS SOFTWARE IS SUPPLIED AS-IS, WITH NO WARRANTY OR GUARANTEE, EXPLICT OR IMPLICIT. THE AUTHORS
 OF THIS SOFTWARE ASSUME NO LIABILITY FROM IMPROPER USE OR OPERATION.
 
 """
@@ -93,7 +93,7 @@ def gentoken(username, password, referer, expiration=240):
                   'referer': referer,
                   'f': 'json'}
 
-    query_string = urllib.urlencode(query_dict)
+    # query_string = urllib.urlencode(query_dict)
     # assume ArcGIS service has token generator at root
     tokenUrl = referer + r"/sharing/rest/generateToken"
 
@@ -119,7 +119,7 @@ def get_data(query):
     global count_tries
     global max_tries
     global sleep_time
-    response = None
+    
 
     try:
         response = urllib2.urlopen(query).read() #get a byte str by default
@@ -132,7 +132,7 @@ def get_data(query):
             resp_json = json.loads(response)
             if resp_json.get('error'):
                 output_msg(resp_json['error'])
-                response = None
+                return None
             else:
                 return resp_json
         else:
@@ -211,13 +211,16 @@ def main():
         password = arcpy.GetParameterAsText(5)
         referring_domain = arcpy.GetParameterAsText(6) # auth domain
         existing_token = arcpy.GetParameterAsText(7) # valid token value
-        strict_mode = arcpy.GetParameter(8) # JSON check required True/False
+        strict_mode = arcpy.GetParameter(8) # JSON check True/False
 
         # to query by geometry need [xmin,ymin,xmax,ymax], spatial reference, and geometryType (eg esriGeometryEnvelope
 
         if service_endpoint == '':
             output_msg("Avast! Can't plunder nothing from an empty url! Time to quit.")
             sys.exit()
+
+        if not type(strict_mode) is bool:
+            strict_mode = True
 
         if not type(max_tries) is int:
             max_tries = int(max_tries)
@@ -304,8 +307,11 @@ def main():
 
             service_layers_to_get = []
             # other variables, calculated from the service
-            service_call = urllib2.urlopen(service_endpoint + '?f=json&token=' + token).read()
-            if service_call:
+            tokenstring = ''
+            if len(token) > 0:
+                tokenstring = '&token=' + token
+            service_call = urllib2.urlopen(service_endpoint + '?f=json' + tokenstring).read()
+            if service_call and (service_call.find('error') == -1):
                 service_layer_info = json.loads(service_call, strict=False)
             else:
                 raise Exception("'service_call' failed to access {0}".format(service_endpoint))
@@ -342,7 +348,7 @@ def main():
                 if slyr == service_endpoint: # no need to get it again
                     service_info = service_layer_info
                 else:
-                    service_info_call = urllib2.urlopen(slyr + '?f=json&token=' + token).read()
+                    service_info_call = urllib2.urlopen(slyr + '?f=json' + tokenstring).read()
                     if service_info_call:
                         service_info = json.loads(service_info_call, strict=False)
                     else:
@@ -353,7 +359,7 @@ def main():
 
                     # clean up the service name (remove invalid characters)
                     service_name_cl = service_name.encode('ascii', 'ignore') # strip any non-ascii characters that may cause an issue
-                    service_name_cl = arcpy.ValidateTableName(service_name, output_workspace) # remove any other problematic characters
+                    service_name_cl = arcpy.ValidateTableName(service_name_cl, output_workspace) # remove any other problematic characters
                     ##output_msg("'{0}' will be stashed as '{1}'".format(service_name, service_name_cl))
 
                     # write out the service info for reference
@@ -378,7 +384,7 @@ def main():
                         # assume JSON supported
                         supports_json = True
 
-                    if supports_json == True:
+                    if supports_json:
                         try:
                             # loop through fields in service_info, get objectID field
                             objectid_field = "OBJECTID"
@@ -391,12 +397,15 @@ def main():
                             else:
                                 output_msg("No field list returned - forging ahead with {0}".format(objectid_field))
 
-                            feat_OIDLIST_query = r"/query?where=" + objectid_field + r"+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=true&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json&token=" + token
+                            feat_OIDLIST_query = r"/query?where=" + objectid_field + r"+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=true&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json" + tokenstring
+                            
 
                             # to query using geometry,&geometry=   &geometryType= esriGeometryEnvelope &inSR= and probably spatial relationship and buffering
-                            feat_query = r"/query?objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json&token=" + token
+                            feat_query = r"/query?objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json" + tokenstring
+                            
 
                             max_record_count = service_info.get('maxRecordCount') # maximum number of records returned by service at once
+                            
 
                             # extract using actual OID values is the safest way
                             feature_OIDs = json.loads(urllib2.urlopen(slyr + feat_OIDLIST_query).read())["objectIds"]
