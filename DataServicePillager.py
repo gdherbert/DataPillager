@@ -364,10 +364,10 @@ def main():
                     service_name_cl = arcpy.ValidateTableName(service_name_cl, output_workspace) # remove any other problematic characters
                     ##output_msg("'{0}' will be stashed as '{1}'".format(service_name, service_name_cl))
 
-                    # write out the service info for reference
+                    # add url & write out the service info for reference
+                    service_info[u'serviceURL'] = slyr
                     info_filename = service_name_cl + "_info.txt"
                     info_file = os.path.join(output_folder, info_filename)
-                    
                     with open(info_file, 'w') as f:
                         json.dump(service_info, f, sort_keys=True, indent=4, separators=(',', ': '))
                         output_msg("Yar! {0} Service info stashed in '{1}'".format(service_name, info_file))
