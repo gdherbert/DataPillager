@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # Purpose:     Extract data from an ArcGIS Service, in chunks defined by
 #              the service Max Record Count to get around that limitation.
 #              Requires that JSON is supported by the service
@@ -9,7 +9,7 @@
 # Created:     12/11/2014
 # Copyright:   (c) Grant Herbert 2014
 # Licence:     MIT License
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 """
 This software is designed for use with ArcGIS as a toolbox tool.
 
@@ -27,6 +27,7 @@ try:
     import urllib2
     import json
     import os
+    import codecs
     import datetime
     import time
     from urlparse import urlparse
@@ -36,18 +37,19 @@ except ImportError, e:
     print e
     sys.exit()
 
-#--------
+# --------
 # globals
 arcpy.env.overwriteOutput = True
 count_tries = 0
 max_tries = 5
 sleep_time = 2
+# --------
 
-#--------
 def trace():
-    import sys, traceback
+    import sys
+    import traceback
     tb = sys.exc_info()[2]
-    tbinfo = traceback.format_tb(tb)[0] # script name + line number
+    tbinfo = traceback.format_tb(tb)[0]  # script name + line number
     line = tbinfo.split(", ")[1]
     # Get Python syntax error
     synerror = traceback.format_exc().splitlines()[-1]
@@ -122,13 +124,13 @@ def get_data(query):
     
 
     try:
-        response = urllib2.urlopen(query).read() #get a byte str by default
+        response = urllib2.urlopen(query).read()  #get a byte str by default
         if response:
             try:
-                response = response.decode('utf-8') # convert to unicode
+                response = response.decode('utf-8')  # convert to unicode
             except UnicodeDecodeError:
-                response = response.decode('unicode-escape') # convert to unicode
-            #load to json and check for error
+                response = response.decode('unicode-escape')  # convert to unicode
+            # load to json and check for error
             resp_json = json.loads(response)
             if resp_json.get('error'):
                 output_msg(resp_json['error'])
@@ -139,7 +141,7 @@ def get_data(query):
             return None
 
     except Exception, e:
-        output_msg(str(e),severity=1)
+        output_msg(str(e), severity=1)
         # sleep and try again
         if hasattr(e, 'errno') and e.errno == 10054:
                 #connection forcible closed, extra sleep pause
@@ -156,8 +158,8 @@ def get_data(query):
 
 def combine_data(fc_list, output_fc):
     """
-        :param fclist: array of featureclass paths as strings
-        :param outputfc: path to output dataset
+        :param fc_list: array of featureclass paths as strings
+        :param output_fc: path to output dataset
         Combine the downloaded datafiles into one
         fastest approach is to use cursor
     """
@@ -368,8 +370,8 @@ def main():
                     service_info[u'serviceURL'] = slyr
                     info_filename = service_name_cl + "_info.txt"
                     info_file = os.path.join(output_folder, info_filename)
-                    with open(info_file, 'w') as f:
-                        json.dump(service_info, f, sort_keys=True, indent=4, separators=(',', ': '))
+                    with open(info_file, 'w') as i_file:
+                        json.dump(service_info, i_file, sort_keys=True, indent=4, separators=(',', ': '))
                         output_msg("Yar! {0} Service info stashed in '{1}'".format(service_name, info_file))
 
                     if strict_mode:
@@ -452,7 +454,7 @@ def main():
                                             #with open(out_JSON_file, 'w') as out_file:
                                             #    out_file.write(response.encode('utf-8')) #back from unicode
 
-                                            with open(out_JSON_file, 'w') as out_file:
+                                            with codecs.open(out_JSON_file, 'w', 'utf-8') as out_file:
                                                 data = json.dumps(response, ensure_ascii=False)
                                                 out_file.write(data)
 
