@@ -82,7 +82,7 @@ def output_msg(msg, severity=0):
 def gentoken(username, password, referer, expiration=240):
     """ Get access token.
         :param username: valid username
-        :param passowrd: valid password
+        :param password: valid password
         :param referer: valid referer url (eg "https://www.arcgis.com")
         :param expiration: optional validity time in minutes (default 240)
     """
@@ -93,7 +93,6 @@ def gentoken(username, password, referer, expiration=240):
                   'referer': referer,
                   'f': 'json'}
 
-    # query_string = urllib.urlencode(query_dict)
     # assume ArcGIS service has token generator at root
     tokenUrl = referer + r"/sharing/rest/generateToken"
 
@@ -112,7 +111,8 @@ def gentoken(username, password, referer, expiration=240):
 
 
 def get_data(query):
-    """ Download the data.
+    """ :param query: url query string
+        Download the data.
         Return a JSON object
         Automatically retries up to max_tries times.
     """
@@ -155,13 +155,15 @@ def get_data(query):
 
 
 def combine_data(fc_list, output_fc):
-    """ Combine the downloaded datafiles into one
+    """
+        :param fclist: array of featureclass paths as strings
+        :param outputfc: path to output dataset
+        Combine the downloaded datafiles into one
         fastest approach is to use cursor
     """
     for fc in fc_list:
         if fc_list.index(fc) == 0:
-            ##arcpy.CopyFeatures_management(fc, outputFC) # adds OBJECTID if in gdb, special OID field fails to append
-            # alternative - append to first dataset. much faster
+            # append to first dataset. much faster
             output_msg("Prepping first dataset {0}".format(fc))
             if arcpy.Exists(output_fc):
                 output_msg("{0} exists, deleting...".format(output_fc))
@@ -203,15 +205,15 @@ def main():
 
     try:
         # arcgis toolbox parameters
-        service_endpoint = arcpy.GetParameterAsText(0) # Service endpoint
-        output_workspace = arcpy.GetParameterAsText(1) # gdb/folder to put the results
-        max_tries = arcpy.GetParameter(2) # max number of retries allowed
-        sleep_time = arcpy.GetParameter(3) # max number of retries allowed
-        username = arcpy.GetParameterAsText(4)
-        password = arcpy.GetParameterAsText(5)
-        referring_domain = arcpy.GetParameterAsText(6) # auth domain
-        existing_token = arcpy.GetParameterAsText(7) # valid token value
-        strict_mode = arcpy.GetParameter(8) # JSON check True/False
+        service_endpoint = arcpy.GetParameterAsText(0) # Service endpoint required
+        output_workspace = arcpy.GetParameterAsText(1) # gdb/folder to put the results required
+        max_tries = arcpy.GetParameter(2) # max number of retries allowed required
+        sleep_time = arcpy.GetParameter(3) # max number of retries allowed required`
+        strict_mode = arcpy.GetParameter(4) # JSON check True/False required
+        username = arcpy.GetParameterAsText(5)
+        password = arcpy.GetParameterAsText(6)
+        referring_domain = arcpy.GetParameterAsText(7) # auth domain
+        existing_token = arcpy.GetParameterAsText(8) # valid token value
 
         # to query by geometry need [xmin,ymin,xmax,ymax], spatial reference, and geometryType (eg esriGeometryEnvelope
 
@@ -365,6 +367,7 @@ def main():
                     # write out the service info for reference
                     info_filename = service_name_cl + "_info.txt"
                     info_file = os.path.join(output_folder, info_filename)
+                    
                     with open(info_file, 'w') as f:
                         json.dump(service_info, f, sort_keys=True, indent=4, separators=(',', ': '))
                         output_msg("Yar! {0} Service info stashed in '{1}'".format(service_name, info_file))
@@ -450,7 +453,7 @@ def main():
                                             #    out_file.write(response.encode('utf-8')) #back from unicode
 
                                             with open(out_JSON_file, 'w') as out_file:
-                                                data = json.dumps(response, ensure_ascii=False, encoding='utf-8')
+                                                data = json.dumps(response, ensure_ascii=False)
                                                 out_file.write(data)
 
                                             output_msg("Nabbed some json data fer ye: '{0}', oids {1} to {2}".format(out_JSON_name, start_oid, end_oid))
