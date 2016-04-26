@@ -413,7 +413,12 @@ def main():
                             
 
                             # extract using actual OID values is the safest way
-                            feature_OIDs = json.loads(urllib2.urlopen(slyr + feat_OIDLIST_query).read())["objectIds"]
+                            feature_OIDs = None
+                            feature_query = json.loads(urllib2.urlopen(slyr + feat_OIDLIST_query).read())
+                            if feature_query and 'objectIds' in feature_query:
+                                feature_OIDs = feature_query["objectIds"]
+                            else:
+                                raise ValueError('Unable to get OID values: {}'.format(feature_query))
 
                             if feature_OIDs:
                                 feature_count = len(feature_OIDs)
