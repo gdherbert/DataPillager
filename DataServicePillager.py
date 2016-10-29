@@ -359,17 +359,23 @@ def main():
                         raise Exception("'service_info_call' failed to access {0}".format(slyr))
 
                 if not service_info.get('error'):
-                    service_name = service_info.get('name')
+                    # add url to info
+                    service_info[u'serviceURL'] = slyr
 
+                    # get count
+                    feature_count_call = urllib2.urlopen(slyr + '/query?where=1%3D1&returnCountOnly=true&f=pjson' + tokenstring).read()
+                    if feature_count_call:
+                        feature_count = json.loads(feature_count_call)
+                        service_info[u'FeatureCount'] = feature_count.get('count')
+
+                    service_name = service_info.get('name')
                     # clean up the service name (remove invalid characters)
                     service_name_cl = service_name.encode('ascii', 'ignore') # strip any non-ascii characters that may cause an issue
                     service_name_cl = arcpy.ValidateTableName(service_name_cl, output_workspace) # remove any other problematic characters
                     ##output_msg("'{0}' will be stashed as '{1}'".format(service_name, service_name_cl))
-
-                    # add url & write out the service info for reference
-                    service_info[u'serviceURL'] = slyr
                     info_filename = service_name_cl + "_info.txt"
                     info_file = os.path.join(output_folder, info_filename)
+                    # write out the service info for reference
                     with open(info_file, 'w') as i_file:
                         json.dump(service_info, i_file, sort_keys=True, indent=4, separators=(',', ': '))
                         output_msg("Yar! {0} Service info stashed in '{1}'".format(service_name, info_file))
@@ -403,14 +409,11 @@ def main():
                                 output_msg("No field list returned - forging ahead with {0}".format(objectid_field))
 
                             feat_OIDLIST_query = r"/query?where=" + objectid_field + r"+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=true&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json" + tokenstring
-                            
 
                             # to query using geometry,&geometry=   &geometryType= esriGeometryEnvelope &inSR= and probably spatial relationship and buffering
                             feat_query = r"/query?objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json" + tokenstring
-                            
 
                             max_record_count = service_info.get('maxRecordCount') # maximum number of records returned by service at once
-                            
 
                             # extract using actual OID values is the safest way
                             feature_OIDs = None
@@ -421,9 +424,9 @@ def main():
                                 raise ValueError('Unable to get OID values: {}'.format(feature_query))
 
                             if feature_OIDs:
-                                feature_count = len(feature_OIDs)
-                                sortie_count = feature_count//max_record_count + (feature_count % max_record_count > 0)
-                                output_msg("{0} records, in chunks of {1}, err, that be {2} sorties. Ready lads!".format(feature_count, max_record_count, sortie_count))
+                                OID_count = len(feature_OIDs)
+                                sortie_count = OID_count//max_record_count + (OID_count % max_record_count > 0)
+                                output_msg("{0} records, in chunks of {1}, err, that be {2} sorties. Ready lads!".format(OID_count, max_record_count, sortie_count))
 
                                 feature_OIDs.sort()
                                 # chunk them
@@ -514,12 +517,12 @@ def main():
                         finally:
                             if arcpy.Exists(final_geofile):
                                 data_count = int(arcpy.GetCount_management(final_geofile)[0])
-                                if data_count == feature_count: #we got it all
+                                if data_count == OID_count: #we got it all
                                     output_msg("Scrubbing the decks...")
                                     for fc in out_shapefile_list:
                                         arcpy.Delete_management(fc)
                                 else:
-                                    output_msg("Splicin' the data failed - found {0} but expected {1}. Check {2} to see what went wrong.".format(data_count, feature_count, final_geofile))
+                                    output_msg("Splicin' the data failed - found {0} but expected {1}. Check {2} to see what went wrong.".format(data_count, OID_count, final_geofile))
 
                     else:
                         # no JSON output
