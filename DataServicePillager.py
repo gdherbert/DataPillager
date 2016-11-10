@@ -401,10 +401,11 @@ def main():
                             objectid_field = "OBJECTID"
                             if 'fields' in service_info:
                                 field_list = service_info.get('fields')
-                                for field in field_list:
-                                    if field.get('type') == 'esriFieldTypeOID':
-                                        objectid_field = field.get('name')
-                                        break
+                                if field_list:
+                                    for field in field_list:
+                                        if field.get('type') == 'esriFieldTypeOID':
+                                            objectid_field = field.get('name')
+                                            break
                             else:
                                 output_msg("No field list returned - forging ahead with {0}".format(objectid_field))
 
