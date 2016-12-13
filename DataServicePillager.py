@@ -319,14 +319,23 @@ def main():
                 service_layer_info = json.loads(service_call, strict=False)
             else:
                 raise Exception("'service_call' failed to access {0}".format(service_endpoint))
-
-            # catch root url entered
+            # TODO check for version differences, Davis demographics data seems different (subLayers, not layers)
+            # eg http://maps.schoolsitelocator.com/arcgis/rest/services/sslJS_NZ/MapServer/542
+            service_version = service_layer_info.get('currentVersion')
+            # catch group layers url entered
             service_list = service_layer_info.get('services')
+            ##service_type = service_layer_info.get('type') # change at 10.4.1? or specific to Davis? type = "Group Layer"
             if service_list:
                 raise ValueError("Unable to pillage a service root url at this time. Enter a FeatureServer layer url!")
 
             # for getting all the layers
-            service_layers = service_layer_info.get('layers')
+            service_layers = None
+            if service_layer_info.get('layers'):
+                service_layers = service_layer_info.get('layers')
+            elif service_layer_info.get('subLayers'):
+                service_layers = service_layer_info.get('subLayers')
+            ##service_layers = service_layer_info.get('subLayers')  # change at 10.4.1? or specific to Davis?
+            # subLayers an array of objects, each has an id
             if service_layers is not None:
                 # has sub layers, get em all
                 for lyr in service_layers:
@@ -422,7 +431,7 @@ def main():
                             if feature_query and 'objectIds' in feature_query:
                                 feature_OIDs = feature_query["objectIds"]
                             else:
-                                raise ValueError('Unable to get OID values: {}'.format(feature_query))
+                                output_msg('Unable to get OID values: {}'.format(feature_query))
 
                             if feature_OIDs:
                                 OID_count = len(feature_OIDs)
