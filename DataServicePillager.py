@@ -321,20 +321,23 @@ def main():
                 raise Exception("'service_call' failed to access {0}".format(service_endpoint))
             # TODO check for version differences, Davis demographics data seems different (subLayers, not layers)
             # eg http://maps.schoolsitelocator.com/arcgis/rest/services/sslJS_NZ/MapServer/542
+            # https://demo.flo-analytics.com/arcgis/rest/services/Client/BMC_Webmap/MapServer
             service_version = service_layer_info.get('currentVersion')
-            # catch group layers url entered
+            # catch root or group layers url entered
             service_list = service_layer_info.get('services')
             ##service_type = service_layer_info.get('type') # change at 10.4.1? or specific to Davis? type = "Group Layer"
             if service_list:
                 raise ValueError("Unable to pillage a service root url at this time. Enter a FeatureServer layer url!")
 
             # for getting all the layers
+            # TODO - make it into a function that returns a url, recurse through multiple nested layers?
+            # service_layer_info
             service_layers = None
             if service_layer_info.get('layers'):
                 service_layers = service_layer_info.get('layers')
             elif service_layer_info.get('subLayers'):
                 service_layers = service_layer_info.get('subLayers')
-            ##service_layers = service_layer_info.get('subLayers')  # change at 10.4.1? or specific to Davis?
+            ##service_layers = service_layer_info.get('subLayers')
             # subLayers an array of objects, each has an id
             if service_layers is not None:
                 # has sub layers, get em all
@@ -344,7 +347,10 @@ def main():
                         service_layers_to_get.append(service_endpoint + '/' + str(lyr_id))
             else:
                 # no sub layers
-                service_layers_to_get.append(service_endpoint)
+                # check if group layer
+                if service_layer_info.get('type'):
+                    if not service_layer_info.get('type') == "Group Layer":
+                        service_layers_to_get.append(service_endpoint)
             for lyr in service_layers_to_get:
                 output_msg('Found {0}'.format(lyr))
 
