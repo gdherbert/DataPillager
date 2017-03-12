@@ -404,12 +404,13 @@ def main():
                         output_msg("Yar! {0} Service info stashed in '{1}'".format(service_name, info_file))
 
                     # write out the render file for reference
-                    render_info = {"drawingInfo":{}}
-                    render_info["drawingInfo"] = service_info.get('drawingInfo')
+                    render_info = {"drawingInfo":{"renderer":{}}}
+                    ##render_info["drawingInfo"] = service_info.get('drawingInfo')
+                    render_info["drawingInfo"]['renderer'] = service_info.get('drawingInfo').get('renderer')
                     render_filename = service_name_cl + "_renderer.txt"
                     render_file = os.path.join(output_folder, render_filename)
                     with open(render_file, 'w') as r_file:
-                        json.dump(render_info, r_file, sort_keys=True, indent=4, separators=(',', ': '))
+                        json.dump(render_info, r_file)
                         output_msg("Yar! {0} Service renderer stashed in '{1}'".format(service_name, render_file))
 
                     if strict_mode:
@@ -529,11 +530,14 @@ def main():
                             #combine all the data
                             combine_data(out_shapefile_list, final_geofile)
 
-                            # TODO create layer file using render_file or render_info
                             layer_name = service_name_cl + ".lyr"
                             layer_file = os.path.join(output_folder, layer_name)
-                            ## lyr = arcpy.mapping.Layer(layer_file)
-                            ## lyr.updateLayerFromJSON(render_info)
+                            output_msg("Sketchin' yer layer, {}".format(layer_file))
+                            layer_temp = arcpy.MakeFeatureLayer_management(final_geofile, service_name_cl)
+                            arcpy.SaveToLayerFile_management(layer_temp, layer_file)
+                            lyr_update = arcpy.mapping.Layer(layer_file)
+                            lyr_update.updateLayerFromJSON(render_info)
+                            lyr_update.save()
 
                             end_time = datetime.datetime.today()
                             elapsed_time = end_time - start_time
