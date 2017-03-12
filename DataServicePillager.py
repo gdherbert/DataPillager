@@ -121,7 +121,7 @@ def get_data(query):
     global count_tries
     global max_tries
     global sleep_time
-    
+
 
     try:
         response = urllib2.urlopen(query).read()  #get a byte str by default
@@ -291,13 +291,10 @@ def main():
             # You must (of course) use it when fetching the page though.
             # authentication is now handled automatically in urllib2.urlopen
 
-            # add proxy handling?
-            # issue where a proxy may not be picked up
-
             # need to generate a new token
             token = gentoken(username, password, refer)
         else:
-            #build a generic opener with the use agent spoofed
+            # build a generic opener with the use agent spoofed
             opener = urllib2.build_opener()
             opener.addheaders = [('User-agent', 'Mozilla/5.0')]
             urllib2.install_opener(opener)
@@ -319,13 +316,10 @@ def main():
                 service_layer_info = json.loads(service_call, strict=False)
             else:
                 raise Exception("'service_call' failed to access {0}".format(service_endpoint))
-            # TODO check for version differences, Davis demographics data seems different (subLayers, not layers)
-            # eg http://maps.schoolsitelocator.com/arcgis/rest/services/sslJS_NZ/MapServer/542
-            # https://demo.flo-analytics.com/arcgis/rest/services/Client/BMC_Webmap/MapServer
             service_version = service_layer_info.get('currentVersion')
             # catch root or group layers url entered
             service_list = service_layer_info.get('services')
-            ##service_type = service_layer_info.get('type') # change at 10.4.1? or specific to Davis? type = "Group Layer"
+            ##service_type = service_layer_info.get('type') # change at 10.4.1 type = "Group Layer"
             if service_list:
                 raise ValueError("Unable to pillage a service root url at this time. Enter a FeatureServer layer url!")
 
@@ -333,18 +327,27 @@ def main():
             # TODO - make it into a function that returns a url, recurse through multiple nested layers?
             # service_layer_info
             service_layers = None
+            service_layer_type = None
             if service_layer_info.get('layers'):
                 service_layers = service_layer_info.get('layers')
+                service_layer_type = 'layers'
             elif service_layer_info.get('subLayers'):
                 service_layers = service_layer_info.get('subLayers')
+                service_layer_type = 'sublayers'
             ##service_layers = service_layer_info.get('subLayers')
             # subLayers an array of objects, each has an id
             if service_layers is not None:
                 # has sub layers, get em all
                 for lyr in service_layers:
-                    if not lyr.get('subLayerIds'):
+                    if not lyr.get('subLayerIds'): #ignore group layers
                         lyr_id = lyr.get('id')
-                        service_layers_to_get.append(service_endpoint + '/' + str(lyr_id))
+                        if service_layer_type == 'layers':
+                            # add the full url
+                            service_layers_to_get.append(service_endpoint + '/' + str(lyr_id))
+                        elif service_layer_type == 'sublayers':
+                            # handled differently, drop the last section and use id
+                            sub_endpoint = service_endpoint.rsplit('/', 1)
+                            service_layers_to_get.append(sub_endpoint[0] + '/' + str(lyr_id))
             else:
                 # no sub layers
                 # check if group layer
@@ -390,10 +393,20 @@ def main():
                     ##output_msg("'{0}' will be stashed as '{1}'".format(service_name, service_name_cl))
                     info_filename = service_name_cl + "_info.txt"
                     info_file = os.path.join(output_folder, info_filename)
+
                     # write out the service info for reference
                     with open(info_file, 'w') as i_file:
                         json.dump(service_info, i_file, sort_keys=True, indent=4, separators=(',', ': '))
                         output_msg("Yar! {0} Service info stashed in '{1}'".format(service_name, info_file))
+
+                    # write out the render file for reference
+                    render_info = {"drawingInfo":{}}
+                    render_info["drawingInfo"] = service_info.get('drawingInfo')
+                    render_filename = service_name_cl + "_renderer.txt"
+                    render_file = os.path.join(output_folder, render_filename)
+                    with open(render_file, 'w') as r_file:
+                        json.dump(render_info, r_file, sort_keys=True, indent=4, separators=(',', ': '))
+                        output_msg("Yar! {0} Service renderer stashed in '{1}'".format(service_name, render_file))
 
                     if strict_mode:
                         # check JSON supported
@@ -465,7 +478,6 @@ def main():
                                     query = slyr + feat_query + where_clause
                                     response = get_data(query) # expects json object. An error will return none
                                     if not response or not response.get('features'):
-                                        # break out
                                         raise ValueError("Abandon ship! Data access failed! Check what ye manag'd to plunder before failure.")
                                     else:
                                         feature_dict = response["features"] # load the features so we can check they are not empty
@@ -477,7 +489,6 @@ def main():
 
                                             #with open(out_JSON_file, 'w') as out_file:
                                             #    out_file.write(response.encode('utf-8')) #back from unicode
-
                                             with codecs.open(out_JSON_file, 'w', 'utf-8') as out_file:
                                                 data = json.dumps(response, ensure_ascii=False)
                                                 out_file.write(data)
@@ -488,10 +499,6 @@ def main():
                                                 out_file_name = service_name_cl + "_" + str(current_iter) + ".shp"
                                             else:
                                                 out_file_name = service_name_cl + "_" + str(current_iter)
-                                            # in-memory version
-                                            ##temp_output = "in_memory\\"
-                                            ##out_file_name = service_name_cl + "_" + str(current_iter)
-                                            ##out_geofile = os.path.join(temp_output, out_file_name)
 
                                             out_geofile = os.path.join(output_workspace, out_file_name)
 
@@ -517,6 +524,12 @@ def main():
 
                             #combine all the data
                             combine_data(out_shapefile_list, final_geofile)
+
+                            # TODO create layer file using render_file or render_info
+                            layer_name = service_name_cl + ".lyr"
+                            layer_file = os.path.join(output_folder, layer_name)
+                            ## lyr = arcpy.mapping.Layer(layer_file)
+                            ## lyr.updateLayerFromJSON(render_info)
 
                             end_time = datetime.datetime.today()
                             elapsed_time = end_time - start_time
