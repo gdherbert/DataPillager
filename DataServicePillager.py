@@ -153,7 +153,7 @@ def get_data(query):
             return u'{"error": "ACCESS_FAILED"}'
         else:
             output_msg("Attempt {0} of {1}".format(count_tries, max_tries))
-            return get_data(query)
+            return get_data(query=query)
 
 
 def combine_data(fc_list, output_fc):
@@ -196,6 +196,33 @@ def grouper(iterable, n, fillvalue=None):
     # http://stackoverflow.com/questions/3992735/python-generator-that-groups-another-iterable-into-groups-of-n
     #return iter(lambda: list(IT.islice(iterable, n)), [])
 
+def createLayerFile(service_info, service_name, layer_source, output_folder):
+    """
+    write out a layer file from service renderer information, providing
+     a service name, a layer source and an output folder
+    """
+    try:
+        render_info = {"drawingInfo": {"renderer": {}}}
+        render_info["drawingInfo"]['renderer'] = service_info.get('drawingInfo').get('renderer')
+
+        render_file = os.path.join(output_folder, service_name + "_renderer.txt")
+        with open(render_file, 'w') as r_file:
+            json.dump(render_info, r_file)
+            output_msg("Yar! {0} Service renderer stashed in '{1}'".format(service_name, render_file))
+
+        layer_file = os.path.join(output_folder, service_name + ".lyr")
+        output_msg("Sketchin' yer layer, {}".format(layer_file))
+
+        layer_temp = arcpy.MakeFeatureLayer_management(layer_source, service_name)
+        arcpy.SaveToLayerFile_management(layer_temp, layer_file)
+        lyr_update = arcpy.mapping.Layer(layer_file)
+        lyr_update.updateLayerFromJSON(render_info)
+        lyr_update.save()
+        output_msg("Stashed yer layer, {}".format(layer_file))
+
+    except Exception, e:
+        output_msg(str(e), severity=1)
+        output_msg("Failed yer layer file drawin'")
 
 #-------------------------------------------------
 def main():
@@ -292,7 +319,7 @@ def main():
             # authentication is now handled automatically in urllib2.urlopen
 
             # need to generate a new token
-            token = gentoken(username, password, refer)
+            token = gentoken(username=username, password=password, referer=refer)
         else:
             # build a generic opener with the use agent spoofed
             opener = urllib2.build_opener()
@@ -399,15 +426,6 @@ def main():
                         json.dump(service_info, i_file, sort_keys=True, indent=4, separators=(',', ': '))
                         output_msg("Yar! {0} Service info stashed in '{1}'".format(service_name, info_file))
 
-                    # write out the render file for reference
-                    render_info = {"drawingInfo":{"renderer":{}}}
-                    ##render_info["drawingInfo"] = service_info.get('drawingInfo')
-                    render_info["drawingInfo"]['renderer'] = service_info.get('drawingInfo').get('renderer')
-                    render_filename = service_name_cl + "_renderer.txt"
-                    render_file = os.path.join(output_folder, render_filename)
-                    with open(render_file, 'w') as r_file:
-                        json.dump(render_info, r_file)
-                        output_msg("Yar! {0} Service renderer stashed in '{1}'".format(service_name, render_file))
 
                     if strict_mode:
                         # check JSON supported
@@ -524,16 +542,9 @@ def main():
                             output_msg("Stashin' all the booty in '{0}'".format(final_geofile))
 
                             #combine all the data
-                            combine_data(out_shapefile_list, final_geofile)
+                            combine_data(fc_list=out_shapefile_list, output_fc=final_geofile)
 
-                            layer_name = service_name_cl + ".lyr"
-                            layer_file = os.path.join(output_folder, layer_name)
-                            output_msg("Sketchin' yer layer, {}".format(layer_file))
-                            layer_temp = arcpy.MakeFeatureLayer_management(final_geofile, service_name_cl)
-                            arcpy.SaveToLayerFile_management(layer_temp, layer_file)
-                            lyr_update = arcpy.mapping.Layer(layer_file)
-                            lyr_update.updateLayerFromJSON(render_info)
-                            lyr_update.save()
+                            createLayerFile(service_info=service_info, service_name=service_name, layer_source=final_geofile, output_folder=output_folder)
 
                             end_time = datetime.datetime.today()
                             elapsed_time = end_time - start_time
