@@ -10,4 +10,4 @@ Accepts a username and password for secured services, and has an experimental fe
 Designed to run from an Arc toolbox (supplied). Toolbox versions for ArcGIS 10.1 and 10.3 are included.
 You may need to reconnect the script source from the toolbox as it is not imported.
 
-Requires a licensed install of Esri ArcGIS 10.1 or above (for the arcpy dependency).
+Requires a licensed install of Esri ArcGIS 10.3 or above (for the arcpy dependency).
