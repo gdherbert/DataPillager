@@ -214,7 +214,7 @@ def createLayerFile(service_info, service_name, layer_source, output_folder):
         output_msg("Sketchin' yer layer, {}".format(layer_file))
 
         layer_temp = arcpy.MakeFeatureLayer_management(layer_source, service_name)
-        arcpy.SaveToLayerFile_management(layer_temp, layer_file)
+        arcpy.SaveToLayerFile_management(in_layer=layer_temp, out_layer=layer_file, is_relative_path="RELATIVE")
         lyr_update = arcpy.mapping.Layer(layer_file)
         lyr_update.updateLayerFromJSON(render_info)
         lyr_update.save()
