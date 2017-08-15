@@ -142,7 +142,8 @@ def get_data(query):
         count_tries += 1
         if count_tries > max_tries:
             count_tries = 0
-            return u'{"error": "ACCESS_FAILED"}'
+            output_msg("Error: ACCESS_FAILED")
+            return None
         else:
             output_msg("Attempt {0} of {1}".format(count_tries, max_tries))
             return get_data(query=query)
@@ -286,6 +287,8 @@ def main():
         referring_domain = arcpy.GetParameterAsText(7) # auth domain
         existing_token = arcpy.GetParameterAsText(8) # valid token value
 
+        sanity_max_record_count = 10000
+
         # to query by geometry need [xmin,ymin,xmax,ymax], spatial reference, and geometryType (eg esriGeometryEnvelope
 
         if service_endpoint == '':
@@ -312,10 +315,6 @@ def main():
         else:
             output_folder = output_desc.path
 
-        #if not existing_token:
-        #    token = ''
-        #else:
-        #    token = existing_token
         token = ''
         if username and not existing_token:
             tokenjson = authenticate(username, password, service_endpoint, referring_domain)
@@ -467,6 +466,10 @@ def main():
                         feat_query = r"/query?objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json" + tokenstring
 
                         max_record_count = service_info.get('maxRecordCount') # maximum number of records returned by service at once
+
+                        output_msg("{0} max records is a wee bit large, using {1} instead...".format(max_record_count, sanity_max_record_count))
+                        if max_record_count > sanity_max_record_count:
+                            max_record_count = sanity_max_record_count
 
                         # extract using actual OID values is the safest way
                         feature_OIDs = None
