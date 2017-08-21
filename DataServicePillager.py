@@ -467,8 +467,10 @@ def main():
 
                         max_record_count = service_info.get('maxRecordCount') # maximum number of records returned by service at once
 
-                        output_msg("{0} max records is a wee bit large, using {1} instead...".format(max_record_count, sanity_max_record_count))
                         if max_record_count > sanity_max_record_count:
+                            output_msg(
+                                "{0} max records is a wee bit large, using {1} instead...".format(max_record_count,
+                                                                                                  sanity_max_record_count))
                             max_record_count = sanity_max_record_count
 
                         # extract using actual OID values is the safest way
