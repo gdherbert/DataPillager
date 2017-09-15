@@ -81,6 +81,19 @@ def output_msg(msg, severity=0):
         pass
 
 
+def test_url(token_url_test):
+    try:
+        if urllib2.urlopen(token_url_test):
+            logging.info("successful url test: %s", token_url_test)
+            return token_url_test
+    except urllib2.HTTPError as e:
+        if e.code == 404:
+            logging.warning("404 error: %s", token_url_test)
+            return None
+    except urllib2.URLError as e:
+        return None
+
+
 def gentoken(username, password, referer, expiration=240):
     """ Get access token.
         :param username: valid username
