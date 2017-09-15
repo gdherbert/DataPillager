@@ -104,14 +104,21 @@ def gentoken(username, password, referer, expiration=240):
     query_dict = {'username': username,
                   'password': password,
                   'expiration': str(expiration),
-                  'client': 'referer',
+                  #'client': 'referer',
+                  'client': 'requestip',
                   'referer': referer,
                   'f': 'json'}
 
-    # assume ArcGIS service has token generator at root
-    tokenUrl = referer + r"/sharing/rest/generateToken"
+    # check for ArcGIS token generator url
+    tokenUrl = referer
+    token_url_array = [referer + r"/sharing/rest/generateToken",
+                       referer + r"/arcgis/tokens/generateToken"]
+    for url2test in token_url_array:
+        if test_url(url2test):
+            tokenUrl = url2test
+            break
 
-    tokenResponse = urllib.urlopen(tokenUrl, urllib.urlencode(query_dict))
+    tokenResponse = urllib2.urlopen(tokenUrl, urllib.urlencode(query_dict))
     token = json.loads(tokenResponse.read(), strict=False)
 
     return token
