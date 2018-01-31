@@ -455,12 +455,16 @@ def main():
                 else:
                     raise Exception("'service_info_call' failed to access {0}".format(slyr))
 
-            if not service_info.get('error'):
+            if not service_info.get('error') and not service_info.get('type') in ("Raster Layer"):
                 # add url to info
                 service_info[u'serviceURL'] = slyr
 
                 # get count
-                feature_count_call = urllib2.urlopen(slyr + '/query?where=1%3D1&returnCountOnly=true&f=pjson' + tokenstring).read()
+                if query_str == '':
+                    feature_count_call = urllib2.urlopen(slyr + '/query?where=1%3D1&returnCountOnly=true&f=pjson' + tokenstring).read()
+                else:
+                    feature_count_call = urllib2.urlopen(slyr + '/query?where=' + query_str + '&returnCountOnly=true&f=pjson' + tokenstring).read()
+
                 if feature_count_call:
                     feature_count = json.loads(feature_count_call)
                     service_info[u'FeatureCount'] = feature_count.get('count')
@@ -478,6 +482,10 @@ def main():
                     json.dump(service_info, i_file, sort_keys=True, indent=4, separators=(',', ': '))
                     output_msg("Yar! {0} Service info stashed in '{1}'".format(service_name, info_file))
 
+                # TODO extract domains
+                domain_json = extract_domain_info(service_info)
+                # turn domain info into domains or table depending on output
+                create_domains_from(domain_json)
 
                 if strict_mode:
                     # check JSON supported
