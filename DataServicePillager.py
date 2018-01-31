@@ -240,6 +240,29 @@ def createLayerFile(service_info, service_name, layer_source, output_folder):
         output_msg("Failed yer layer file drawin'")
 
 
+def extract_domain_info(service_info):
+    """extract domain information from service info"""
+    # TODO return json of domains?
+    ## find fields array, loop through fields and find field name and domain not null, extract domain values from 'domain' codedValues array
+    # "domain":{"type":"codedValue","name":"RampType","codedValues":[{"name":"Perpendicular","code":"Perpendicular"},{"name":"Diagonal","code":"Diagonal"},{"name":"Parallel","code":"Parallel"},{"name":"Combination","code":"Combination"},{"name":"Built Up","code":"Built Up"},{"name":"Depressed","code":"Depressed"},{"name":"Other","code":"Other"},{"name":"Unknown","code":"Unknown"}]}
+
+##    fields = service_info.get('fields')
+##    for field in fields:
+##        domain = field[0].get('domain') # type, name, coded values or null
+##        if domain:
+##            dname = domain.get('name')
+##            dtype = domain.get('type')
+##            dcodedvalues = domain.get('codedValues')
+    pass
+
+
+def create_domains_from(domain_json):
+    """create domains from json"""
+    #TODO extract individual domains
+    #pass each to appropriate domain writer
+    pass
+
+
 def authenticate(username, password, service_endpoint, referring_domain):
     # set referring domain if supplied
     # or try to infer it from url
