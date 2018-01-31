@@ -307,6 +307,7 @@ def main():
         password = arcpy.GetParameterAsText(6)
         referring_domain = arcpy.GetParameterAsText(7) # auth domain
         existing_token = arcpy.GetParameterAsText(8) # valid token value
+        query_str = arcpy.GetParameterAsText(9) # query string
 
         sanity_max_record_count = 10000
 
@@ -324,6 +325,9 @@ def main():
 
         if not type(sleep_time) is int:
            sleep_time = int(sleep_time)
+
+        if query_str:
+            query_str = urllib.quote(query_str)
 
         if output_workspace == '':
             output_workspace = os.getcwd()
@@ -481,8 +485,10 @@ def main():
                         else:
                             output_msg("No field list returned - forging ahead with {0}".format(objectid_field))
 
-                        feat_OIDLIST_query = r"/query?where=" + objectid_field + r"+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=true&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json" + tokenstring
-
+                        if query_str =='':
+                            feat_OIDLIST_query = r"/query?where=" + objectid_field + r"+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=true&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json" + tokenstring
+                        else:
+                            feat_OIDLIST_query = r"/query?where=" + query_str + r"&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=true&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json" + tokenstring
                         # to query using geometry,&geometry=   &geometryType= esriGeometryEnvelope &inSR= and probably spatial relationship and buffering
                         feat_query = r"/query?objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json" + tokenstring
 
@@ -523,7 +529,13 @@ def main():
                                             break
 
                                 # >= %3E%3D, <= %3C%3D
-                                where_clause = "&where={0}+%3E%3D+{1}+AND+{2}+%3C%3D+{3}".format(objectid_field, str(start_oid), objectid_field, str(end_oid))
+                                if query_str == '':
+                                    where_clause = "&where={0}+%3E%3D+{1}+AND+{2}+%3C%3D+{3}".format(objectid_field, str(start_oid), objectid_field, str(end_oid))
+                                else:
+                                    where_clause = "&where={0}+AND+{1}+%3E%3D+{2}+AND+{3}+%3C%3D+{4}".format(query_str, objectid_field,
+                                                                                                     str(start_oid),
+                                                                                                     objectid_field,
+                                                                                                     str(end_oid))
                                 # response is a string of json with the attr and geom
                                 query = slyr + feat_query + where_clause
                                 response = get_data(query) # expects json object. An error will return none
@@ -603,8 +615,11 @@ def main():
                     # no JSON output
                     output_msg("Aaaar, ye service does not support JSON output. Can't do it.")
             else:
-                # service info error
-                output_msg("Error: {0}".format(service_info.get('error')))
+                if service_info.get('error'):
+                    # service info error
+                    output_msg("Error: {0}".format(service_info.get('error')), severity=2)
+                else:
+                    output_msg('Layer skipped')
 
     except ValueError, e:
         output_msg("ERROR: " + str(e), severity=2)
