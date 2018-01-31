@@ -387,6 +387,7 @@ def main():
         output_msg("Start the plunder! {0}".format(service_endpoint))
         output_msg("We be stashing the booty in {0}".format(output_workspace))
 
+        service_layers_to_walk = []
         service_layers_to_get = []
         # other variables, calculated from the service
         tokenstring = ''
@@ -398,41 +399,68 @@ def main():
         else:
             raise Exception("'service_call' failed to access {0}".format(service_endpoint))
         service_version = service_layer_info.get('currentVersion')
-        # catch root or group layers url entered
-        service_list = service_layer_info.get('services')
-        ##service_type = service_layer_info.get('type') # change at 10.4.1 type = "Group Layer"
-        if service_list:
-            raise ValueError("Unable to pillage a service root url at this time. Enter a FeatureServer layer url!")
 
-        # for getting all the layers
-        service_layers = None
-        service_layer_type = None
-        if service_layer_info.get('layers'):
-            service_layers = service_layer_info.get('layers')
-            service_layer_type = 'layers'
-        elif service_layer_info.get('subLayers'):
-            service_layers = service_layer_info.get('subLayers')
-            service_layer_type = 'sublayers'
-        ##service_layers = service_layer_info.get('subLayers')
-        # subLayers an array of objects, each has an id
-        if service_layers is not None:
-            # has sub layers, get em all
-            for lyr in service_layers:
-                if not lyr.get('subLayerIds'): #ignore group layers
-                    lyr_id = lyr.get('id')
-                    if service_layer_type == 'layers':
-                        # add the full url
-                        service_layers_to_get.append(service_endpoint + '/' + str(lyr_id))
-                    elif service_layer_type == 'sublayers':
-                        # handled differently, drop the last section and use id
-                        sub_endpoint = service_endpoint.rsplit('/', 1)
-                        service_layers_to_get.append(sub_endpoint[0] + '/' + str(lyr_id))
-        else:
-            # no sub layers
-            # check if group layer
-            if service_layer_info.get('type'):
-                if not service_layer_info.get('type') == "Group Layer":
-                    service_layers_to_get.append(service_endpoint)
+        # catch root or group layers url entered
+        # TODO walk folders (ignore 'utilities'?)
+        if 'folders' in service_layer_info.keys() and len(service_layer_info.get('folders')) > 0:
+            catalog_folder = service_layer_info.get('folders')
+            for folder_name in catalog_folder:
+                print folder_name
+        # get list of service urls to walk
+        if 'services' in service_layer_info.keys() and len(service_layer_info.get('services')) > 0:
+            catalog_services = service_layer_info.get('services')
+            for service in catalog_services:
+                servicetype = service['type']
+                servicename = service['name']
+                folder, sname = servicename.split('/')
+                if service_endpoint.endswith(folder):
+                    service_url = service_endpoint + '/' + sname + '/' + servicetype
+                else:
+                    service_url = service_endpoint + '/' + servicename + '/' + servicetype
+                service_layers_to_walk.append(service_url)
+
+        if len(service_layers_to_walk) == 0:
+            # no services or folders
+            service_layers_to_walk.append(service_endpoint)
+
+        ##service_type = service_layer_info.get('type') # change at 10.4.1 type = "Group Layer"
+        # if catalog_services:
+        #    raise ValueError("Unable to pillage a service root url at this time. Enter a FeatureServer layer url!")
+
+        for url in service_layers_to_walk:
+            # go get the json and information and walk down until you get all the service urls
+            service_call = json.load(urllib2.urlopen(url + '?f=json' + tokenstring))
+
+            # for getting all the layers
+            service_layers = None
+            service_layer_type = None
+            if service_layer_info.get('layers'):
+                service_layers = service_layer_info.get('layers')
+                service_layer_type = 'layers'
+            elif service_layer_info.get('subLayers'):
+                service_layers = service_layer_info.get('subLayers')
+                service_layer_type = 'sublayers'
+            ##service_layers = service_layer_info.get('subLayers')
+            # subLayers an array of objects, each has an id
+            if service_layers is not None:
+                # has sub layers, get em all
+                for lyr in service_layers:
+                    if not lyr.get('subLayerIds'):  # ignore group layers
+                        lyr_id = lyr.get('id')
+                        if service_layer_type == 'layers':
+                            # add the full url
+                            service_layers_to_get.append(service_endpoint + '/' + str(lyr_id))
+                        elif service_layer_type == 'sublayers':
+                            # handled differently, drop the last section and use id
+                            sub_endpoint = service_endpoint.rsplit('/', 1)
+                            service_layers_to_get.append(sub_endpoint[0] + '/' + str(lyr_id))
+            else:
+                # no sub layers
+                # check if group layer
+                if service_layer_info.get('type'):
+                    if not service_layer_info.get('type') in ("Group Layer", "Raster Layer"):
+                        service_layers_to_get.append(service_endpoint)
+
         for lyr in service_layers_to_get:
             output_msg('Found {0}'.format(lyr))
 
