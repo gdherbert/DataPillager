@@ -94,6 +94,89 @@ def test_url(token_url_test):
         return None
 
 
+def get_all_the_layers(service_endpoint, tokenstring):
+    """need to make sure we only get the final url, walk the folders and extract the final url"""
+    "TODO refactor to pull just the last url"
+    service_call = urllib2.urlopen(service_endpoint + '?f=json' + tokenstring).read()
+    if service_call and (service_call.find('error') == -1):
+        service_layer_info = json.loads(service_call, strict=False)
+    else:
+        raise Exception("'service_call' failed to access {0}".format(service_endpoint))
+    service_version = service_layer_info.get('currentVersion')
+
+    service_layers_to_walk = []
+    service_layers_to_get = []
+
+    # search any folders
+    if 'folders' in service_layer_info.keys() and len(service_layer_info.get('folders')) > 0:
+        catalog_folder = service_layer_info.get('folders')
+        folder_list = [f for f in catalog_folder if f.lower() not in ('utilities')]
+        for folder_name in folder_list:
+            output_msg("I be searching {} for hidden treasure...".format(folder_name), severity=0)
+            lyr_list = get_all_the_layers(service_endpoint + '/' + folder_name, tokenstring)
+            if lyr_list:
+                service_layers_to_walk.extend(lyr_list)
+
+    # get list of service urls
+    if 'services' in service_layer_info.keys() and len(service_layer_info.get('services')) > 0:
+        catalog_services = service_layer_info.get('services')
+        for service in catalog_services:
+            servicetype = service['type']
+            servicename = service['name']
+            if servicetype in ['MapServer', 'FeatureServer']:
+                if servicename.find('/') > -1:
+                    folder, sname = servicename.split('/')
+                    if service_endpoint.endswith(folder):
+                        service_url = service_endpoint + '/' + sname + '/' + servicetype
+                else:
+                    service_url = service_endpoint + '/' + servicename + '/' + servicetype
+                service_layers_to_walk.append(service_url)
+
+    if len(service_layers_to_walk) == 0:
+        # no services or folders
+        service_layers_to_walk.append(service_endpoint)
+
+    # output_msg('{} urls to plunder!'.format(len(service_layers_to_walk)), severity=0)
+    for url in service_layers_to_walk:
+        # go get the json and information and walk down until you get all the service urls
+        service_call = json.load(urllib2.urlopen(url + '?f=json' + tokenstring))
+
+        # for getting all the layers, start with a list of sublayers
+        service_layers = None
+        service_layer_type = None
+        if service_call.get('layers'):
+            service_layers = service_call.get('layers')
+            service_layer_type = 'layers'
+        elif service_call.get('subLayers'):
+            service_layers = service_layer_info.get('subLayers')
+            service_layer_type = 'sublayers'
+
+        # subLayers an array of objects, each has an id
+        if service_layers is not None:
+            # has sub layers, get em all
+            for lyr in service_layers:
+                # service_call.get('type') in ['MapServer', 'FeatureServer']
+                if not lyr.get('subLayerIds'):  # ignore group layers
+                    lyr_id = lyr.get('id')
+                    if service_layer_type == 'layers':
+                        sub_layer_url = url + '/' + str(lyr_id)
+                        # add the full url
+                        service_layers_to_get.append(sub_layer_url)
+                    elif service_layer_type == 'sublayers':
+                        # handled differently, drop the last section and use id
+                        sub_endpoint = url.rsplit('/', 1)
+                        sub_layer_url = sub_endpoint + '/' + lyr_id
+                        service_layers_to_get.append(sub_layer_url)
+        else:
+            # no sub layers
+            # check if group layer
+            if service_call.get('type'):
+                if not service_call.get('type') in ("Group Layer", "Raster Layer"):
+                    service_layers_to_get.append(url)
+
+    return service_layers_to_get
+
+
 def gentoken(username, password, referer, expiration=240):
     """ Get access token.
         :param username: valid username
@@ -391,84 +474,8 @@ def main():
         output_msg("Start the plunder! {0}".format(service_endpoint))
         output_msg("We be stashing the booty in {0}".format(output_workspace))
 
-        service_call = urllib2.urlopen(service_endpoint + '?f=json' + tokenstring).read()
-        if service_call and (service_call.find('error') == -1):
-            service_layer_info = json.loads(service_call, strict=False)
-        else:
-            raise Exception("'service_call' failed to access {0}".format(service_endpoint))
-        service_version = service_layer_info.get('currentVersion')
-
-        service_layers_to_walk = []
-        service_layers_to_get = []
-
-        # catch root or group layers url entered
-        # TODO walk folders (ignore 'utilities'?)
-        if 'folders' in service_layer_info.keys() and len(service_layer_info.get('folders')) > 0:
-            catalog_folder = service_layer_info.get('folders')
-            for folder_name in catalog_folder:
-                pass
-
-        # get list of service urls to walk
-        if 'services' in service_layer_info.keys() and len(service_layer_info.get('services')) > 0:
-            catalog_services = service_layer_info.get('services')
-            for service in catalog_services:
-                servicetype = service['type']
-                servicename = service['name']
-                folder, sname = servicename.split('/')
-                if servicetype in ['MapServer', 'FeatureServer']:
-                    if service_endpoint.endswith(folder):
-                        service_url = service_endpoint + '/' + sname + '/' + servicetype
-                    else:
-                        service_url = service_endpoint + '/' + servicename + '/' + servicetype
-                    service_layers_to_walk.append(service_url)
-
-        if len(service_layers_to_walk) == 0:
-            # no services or folders
-            service_layers_to_walk.append(service_endpoint)
-
-        ##service_type = service_layer_info.get('type') # change at 10.4.1 type = "Group Layer"
-        # if catalog_services:
-        #    raise ValueError("Unable to pillage a service root url at this time. Enter a FeatureServer layer url!")
-
-        for url in service_layers_to_walk:
-            # go get the json and information and walk down until you get all the service urls
-            service_call = json.load(urllib2.urlopen(url + '?f=json' + tokenstring))
-
-            # for getting all the layers, start with a list of sublayers
-            service_layers = None
-            service_layer_type = None
-            if service_call.get('layers'):
-                service_layers = service_call.get('layers')
-                service_layer_type = 'layers'
-            elif service_call.get('subLayers'):
-                service_layers = service_layer_info.get('subLayers')
-                service_layer_type = 'sublayers'
-
-            # subLayers an array of objects, each has an id
-            if service_layers is not None:
-                # has sub layers, get em all
-                for lyr in service_layers:
-                    # service_call.get('type') in ['MapServer', 'FeatureServer']
-                    if not lyr.get('subLayerIds'):  # ignore group layers
-                        lyr_id = lyr.get('id')
-                        if service_layer_type == 'layers':
-                            sub_layer_url = url + '/' + str(lyr_id)
-                            # add the full url
-                            service_layers_to_get.append(sub_layer_url)
-                        elif service_layer_type == 'sublayers':
-                            # handled differently, drop the last section and use id
-                            sub_endpoint = url.rsplit('/', 1)
-                            service_layers_to_get.append(sub_layer_url)
-            else:
-                # no sub layers
-                # check if group layer
-                if service_call.get('type'):
-                    if not service_call.get('type') in ("Group Layer", "Raster Layer"):
-                        service_layers_to_get.append(url)
-
-        for lyr in service_layers_to_get:
-            output_msg('Found {0}'.format(lyr))
-
+        service_layers_to_get = get_all_the_layers(service_endpoint, tokenstring)
+        output_msg('{} layers to get'.format(len(service_layers_to_get)))
         for slyr in service_layers_to_get:
             count_tries = 0
             out_shapefile_list = [] # for file merging.
