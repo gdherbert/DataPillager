@@ -415,11 +415,12 @@ def main():
                 servicetype = service['type']
                 servicename = service['name']
                 folder, sname = servicename.split('/')
-                if service_endpoint.endswith(folder):
-                    service_url = service_endpoint + '/' + sname + '/' + servicetype
-                else:
-                    service_url = service_endpoint + '/' + servicename + '/' + servicetype
-                service_layers_to_walk.append(service_url)
+                if servicetype in ['MapServer', 'FeatureServer']:
+                    if service_endpoint.endswith(folder):
+                        service_url = service_endpoint + '/' + sname + '/' + servicetype
+                    else:
+                        service_url = service_endpoint + '/' + servicename + '/' + servicetype
+                    service_layers_to_walk.append(service_url)
 
         if len(service_layers_to_walk) == 0:
             # no services or folders
@@ -433,35 +434,37 @@ def main():
             # go get the json and information and walk down until you get all the service urls
             service_call = json.load(urllib2.urlopen(url + '?f=json' + tokenstring))
 
-            # for getting all the layers
+            # for getting all the layers, start with a list of sublayers
             service_layers = None
             service_layer_type = None
-            if service_layer_info.get('layers'):
-                service_layers = service_layer_info.get('layers')
+            if service_call.get('layers'):
+                service_layers = service_call.get('layers')
                 service_layer_type = 'layers'
-            elif service_layer_info.get('subLayers'):
+            elif service_call.get('subLayers'):
                 service_layers = service_layer_info.get('subLayers')
                 service_layer_type = 'sublayers'
-            ##service_layers = service_layer_info.get('subLayers')
+
             # subLayers an array of objects, each has an id
             if service_layers is not None:
                 # has sub layers, get em all
                 for lyr in service_layers:
+                    # service_call.get('type') in ['MapServer', 'FeatureServer']
                     if not lyr.get('subLayerIds'):  # ignore group layers
                         lyr_id = lyr.get('id')
                         if service_layer_type == 'layers':
+                            sub_layer_url = url + '/' + str(lyr_id)
                             # add the full url
-                            service_layers_to_get.append(service_endpoint + '/' + str(lyr_id))
+                            service_layers_to_get.append(sub_layer_url)
                         elif service_layer_type == 'sublayers':
                             # handled differently, drop the last section and use id
-                            sub_endpoint = service_endpoint.rsplit('/', 1)
-                            service_layers_to_get.append(sub_endpoint[0] + '/' + str(lyr_id))
+                            sub_endpoint = url.rsplit('/', 1)
+                            service_layers_to_get.append(sub_layer_url)
             else:
                 # no sub layers
                 # check if group layer
-                if service_layer_info.get('type'):
-                    if not service_layer_info.get('type') in ("Group Layer", "Raster Layer"):
-                        service_layers_to_get.append(service_endpoint)
+                if service_call.get('type'):
+                    if not service_call.get('type') in ("Group Layer", "Raster Layer"):
+                        service_layers_to_get.append(url)
 
         for lyr in service_layers_to_get:
             output_msg('Found {0}'.format(lyr))
