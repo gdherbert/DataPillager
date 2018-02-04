@@ -95,8 +95,9 @@ def test_url(token_url_test):
 
 
 def get_all_the_layers(service_endpoint, tokenstring):
-    """need to make sure we only get the final url, walk the folders and extract the final url"""
-    "TODO refactor to pull just the last url"
+    """feature layers or map layers
+    walk the folders and extract the final url
+    """
     service_call = urllib2.urlopen(service_endpoint + '?f=json' + tokenstring).read()
     if service_call and (service_call.find('error') == -1):
         service_layer_info = json.loads(service_call, strict=False)
@@ -155,7 +156,6 @@ def get_all_the_layers(service_endpoint, tokenstring):
         if service_layers is not None:
             # has sub layers, get em all
             for lyr in service_layers:
-                # service_call.get('type') in ['MapServer', 'FeatureServer']
                 if not lyr.get('subLayerIds'):  # ignore group layers
                     lyr_id = lyr.get('id')
                     if service_layer_type == 'layers':
@@ -490,7 +490,7 @@ def main():
             else:
                 raise Exception("'service_info_call' failed to access {0}".format(slyr))
 
-            if not service_info.get('error') and not service_info.get('type') in ("Raster Layer"):
+            if not service_info.get('error'):
                 # add url to info
                 service_info[u'serviceURL'] = slyr
 
