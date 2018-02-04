@@ -218,7 +218,6 @@ def get_data(query):
     global max_tries
     global sleep_time
 
-
     try:
         response = urllib2.urlopen(query).read()  #get a byte str by default
         if response:
@@ -230,11 +229,9 @@ def get_data(query):
             resp_json = json.loads(response)
             if resp_json.get('error'):
                 output_msg(resp_json['error'])
-                return None
-            else:
-                return resp_json
+            return resp_json
         else:
-            return None
+            return {'error': 'no response received'}
 
     except Exception, e:
         output_msg(str(e), severity=1)
@@ -484,20 +481,46 @@ def main():
             max_record_count = 0
             feature_count = 0
             final_geofile = ''
+            has_geom_field = False #has a geometry field
 
             output_msg("Now pillagin' yer data from {0}".format(slyr))
-            if slyr == service_endpoint: # no need to get it again
-                service_info = service_layer_info
+            service_info_call = urllib2.urlopen(slyr + '?f=json' + tokenstring).read()
+            if service_info_call:
+                service_info = json.loads(service_info_call, strict=False)
             else:
-                service_info_call = urllib2.urlopen(slyr + '?f=json' + tokenstring).read()
-                if service_info_call:
-                    service_info = json.loads(service_info_call, strict=False)
-                else:
-                    raise Exception("'service_info_call' failed to access {0}".format(slyr))
+                raise Exception("'service_info_call' failed to access {0}".format(slyr))
 
             if not service_info.get('error') and not service_info.get('type') in ("Raster Layer"):
                 # add url to info
                 service_info[u'serviceURL'] = slyr
+
+                if strict_mode:
+                    # check JSON supported
+                    supports_json = False
+                    if 'supportedQueryFormats' in service_info:
+                        supported_formats = service_info.get('supportedQueryFormats').split(",")
+                        for data_format in supported_formats:
+                            if data_format == "JSON":
+                                supports_json = True
+                                break
+                    else:
+                        output_msg('Unable to check supported formats. Check {0} for details'.format(info_file))
+                else:
+                    # assume JSON supported
+                    supports_json = True
+
+                objectid_field = "OBJECTID"
+                if 'fields' in service_info:
+                    field_list = service_info.get('fields')
+                    if field_list:
+                        for field in field_list:
+                            ftype = field.get('type')
+                            if ftype == 'esriFieldTypeOID':
+                                objectid_field = field.get('name')
+                            elif ftype == 'esriFieldTypeGeometry':
+                                has_geom_field = True
+                else:
+                    output_msg("No field list returned - forging ahead with {0}".format(objectid_field))
 
                 # get count
                 if query_str == '':
@@ -523,39 +546,13 @@ def main():
                     output_msg("Yar! {0} Service info stashed in '{1}'".format(service_name, info_file))
 
                 # TODO extract domains
-                domain_json = extract_domain_info(service_info)
+                # domain_json = extract_domain_info(service_info)
                 # turn domain info into domains or table depending on output
-                create_domains_from(domain_json)
-
-                if strict_mode:
-                    # check JSON supported
-                    supports_json = False
-                    if 'supportedQueryFormats' in service_info:
-                        supported_formats = service_info.get('supportedQueryFormats').split(",")
-                        for data_format in supported_formats:
-                            if data_format == "JSON":
-                                supports_json = True
-                                break
-                    else:
-                        output_msg('Unable to check supported formats. Check {0} for details'.format(info_file))
-                else:
-                    # assume JSON supported
-                    supports_json = True
+                # create_domains_from(domain_json)
 
                 if supports_json:
                     try:
                         # loop through fields in service_info, get objectID field
-                        objectid_field = "OBJECTID"
-                        if 'fields' in service_info:
-                            field_list = service_info.get('fields')
-                            if field_list:
-                                for field in field_list:
-                                    if field.get('type') == 'esriFieldTypeOID':
-                                        objectid_field = field.get('name')
-                                        break
-                        else:
-                            output_msg("No field list returned - forging ahead with {0}".format(objectid_field))
-
                         if query_str =='':
                             feat_OIDLIST_query = r"/query?where=" + objectid_field + r"+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=true&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json" + tokenstring
                         else:
@@ -579,7 +576,7 @@ def main():
                         else:
                             output_msg('Unable to get OID values: {}'.format(feature_query))
 
-                        if feature_OIDs:
+                        if feature_OIDs and has_geom_field:
                             OID_count = len(feature_OIDs)
                             sortie_count = OID_count//max_record_count + (OID_count % max_record_count > 0)
                             output_msg("{0} records, in chunks of {1}, err, that be {2} sorties. Ready lads!".format(OID_count, max_record_count, sortie_count))
@@ -609,8 +606,8 @@ def main():
                                                                                                      str(end_oid))
                                 # response is a string of json with the attr and geom
                                 query = slyr + feat_query + where_clause
-                                response = get_data(query) # expects json object. An error will return none
-                                if not response or not response.get('features'):
+                                response = get_data(query) # expects json object
+                                if not response.get('features'):
                                     raise ValueError("Abandon ship! Data access failed! Check what ye manag'd to plunder before failure.")
                                 else:
                                     feature_dict = response["features"] # load the features so we can check they are not empty
