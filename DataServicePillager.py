@@ -369,13 +369,14 @@ def main():
             if "token" in tokenjson:
                 token = tokenjson['token']
             else:
+                output_msg(
+                    "Avast! The scurvy gatekeeper says 'Could not generate a token with the username and password provided'.",
+                    severity=2)
                 if "error" in tokenjson:
                     output_msg(tokenjson["error"], severity=2)
                 elif "token" not in tokenjson:
                     output_msg(tokenjson['messages'], severity=2)
-                output_msg("Avast! The scurvy gatekeeper says 'Could not generate a token with the username and password provided'.", severity=2)
                 raise ValueError("Token Error")
-
         elif existing_token:
             token = existing_token
         else:
@@ -383,16 +384,13 @@ def main():
             opener = urllib2.build_opener()
             opener.addheaders = [('User-agent', 'Mozilla/5.0')]
             urllib2.install_opener(opener)
+        tokenstring = ''
+        if len(token) > 0:
+            tokenstring = '&token=' + token
 
         output_msg("Start the plunder! {0}".format(service_endpoint))
         output_msg("We be stashing the booty in {0}".format(output_workspace))
 
-        service_layers_to_walk = []
-        service_layers_to_get = []
-        # other variables, calculated from the service
-        tokenstring = ''
-        if len(token) > 0:
-            tokenstring = '&token=' + token
         service_call = urllib2.urlopen(service_endpoint + '?f=json' + tokenstring).read()
         if service_call and (service_call.find('error') == -1):
             service_layer_info = json.loads(service_call, strict=False)
@@ -400,12 +398,16 @@ def main():
             raise Exception("'service_call' failed to access {0}".format(service_endpoint))
         service_version = service_layer_info.get('currentVersion')
 
+        service_layers_to_walk = []
+        service_layers_to_get = []
+
         # catch root or group layers url entered
         # TODO walk folders (ignore 'utilities'?)
         if 'folders' in service_layer_info.keys() and len(service_layer_info.get('folders')) > 0:
             catalog_folder = service_layer_info.get('folders')
             for folder_name in catalog_folder:
-                print folder_name
+                pass
+
         # get list of service urls to walk
         if 'services' in service_layer_info.keys() and len(service_layer_info.get('services')) > 0:
             catalog_services = service_layer_info.get('services')
