@@ -93,9 +93,118 @@ def test_url(token_url_test):
         return None
 
 
+def get_adapter_name(service_endpoint):
+    """extract web adaptor name from endpoint
+    :param service_endpoint url of service
+    """
+    adapter_name = 'arcgis'
+    u = urlparse(service_endpoint)
+    if u.netloc.find('arcgis.com') > -1:
+        # is an esri domain
+        refer = r"https://www.arcgis.com"
+        adapter_name = u.path.split("/")[2]  # third element
+    else:
+        adapter_name = u.path.split("/")[1] # second element
+    return adapter_name
+
+
+def get_referring_domain(service_endpoint):
+    """get referer url
+    :param service_endpoint url of service
+    """
+    u = urlparse(service_endpoint)
+    if u.netloc.find('arcgis.com') > -1:
+        # is an esri domain
+        referer = r"https://www.arcgis.com"
+    else:
+        # generate from service url and hope it works
+        if u.scheme == 'http':
+            referer = urlunsplit(['https', u.netloc, '', '', ''])
+        else:
+            referer = urlunsplit([u.scheme, u.netloc, '', '', ''])
+    return referer
+
+
+# def set_auth_manager(username, password, service_endpoint):
+#     """set up authentication
+#     :param username
+#     :param password
+#     :param service_endpoint
+#     """
+#     # from http://stackoverflow.com/questions/1045886/https-log-in-with-urllib2
+#     passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
+#     # this creates a password manager
+#     passman.add_password(None, service_endpoint, username, password)
+#     # because we have put None at the start it will always
+#     # use this username/password combination for  urls
+#     # for which `theurl` is a super-url
+#
+#     authhandler = urllib2.HTTPBasicAuthHandler(passman)
+#     # create the AuthHandler
+#     opener = urllib2.build_opener(authhandler)
+#     # user agent spoofing
+#     opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+#
+#     urllib2.install_opener(opener)
+#     # All calls to urllib2.urlopen will now use our handler
+#     # Make sure not to include the protocol in with the URL, or
+#     # HTTPPasswordMgrWithDefaultRealm will be very confused.
+#     # You must (of course) use it when fetching the page though.
+#     # authentication is now handled automatically in urllib2.urlopen
+
+
+def gentoken(username, password, referer, adapter_name, use_referer_mode=False, expiration=240):
+    """ Get access token.
+        :param username: valid username
+        :param password: valid password
+        :param referer: referer url
+        :param adapter_name: name of the arcgis server adapter
+        :param use_referer_mode: whether to use referer value over requestip (default False uses requestip)
+        :param expiration: optional validity time in minutes (default 240)
+    """
+    query_dict = {'username': username,
+                  'password': password,
+                  'expiration': str(expiration),
+                  #'client': 'referer',
+                  'client': 'requestip',
+                  'referer': referer,
+                  'f': 'json'}
+    # AGO case
+    if use_referer_mode:
+        query_dict['client'] = 'referer'
+
+    # check for ArcGIS token generator url
+    tokenUrl = None
+    token_url_array = [referer + r"/sharing/rest/generateToken",
+                       referer + r"/" + adapter_name + r"/tokens/generateToken"]
+    for url2test in token_url_array:
+        if test_url(url2test):
+            tokenUrl = url2test
+            break
+    if tokenUrl:
+        tokenResponse = urllib2.urlopen(tokenUrl, urllib.urlencode(query_dict))
+        tokenjson = json.loads(tokenResponse.read(), strict=False)
+    else:
+        tokenjson = {"error": "unable to get token"}
+
+    if "token" in tokenjson:
+        token = tokenjson['token']
+        return token
+    else:
+        output_msg(
+            "Avast! The scurvy gatekeeper says 'Could not generate a token with the username and password provided'.",
+            severity=2)
+        if "error" in tokenjson:
+            output_msg(tokenjson["error"], severity=2)
+        elif "message" in tokenjson:
+            output_msg(tokenjson['message'], severity=2)
+        raise ValueError("Token Error")
+
+
 def get_all_the_layers(service_endpoint, tokenstring):
-    """feature layers or map layers
-    walk the folders and extract the final url
+    """walk the endpoint and extract feature layer or map layer urls
+    :param service_endpoint starting url
+    :param tokenstring string containing token for authentication
     """
     service_call = urllib2.urlopen(service_endpoint + '?f=json' + tokenstring).read()
     if service_call and (service_call.find('error') == -1):
@@ -174,37 +283,6 @@ def get_all_the_layers(service_endpoint, tokenstring):
                     service_layers_to_get.append(url)
 
     return service_layers_to_get
-
-
-def gentoken(username, password, referer, expiration=240):
-    """ Get access token.
-        :param username: valid username
-        :param password: valid password
-        :param referer: valid referer url (eg "https://www.arcgis.com")
-        :param expiration: optional validity time in minutes (default 240)
-    """
-    query_dict = {'username': username,
-                  'password': password,
-                  'expiration': str(expiration),
-                  #'client': 'referer',
-                  'client': 'requestip',
-                  'referer': referer,
-                  'f': 'json'}
-
-    # check for ArcGIS token generator url
-    tokenUrl = None
-    token_url_array = [referer + r"/sharing/rest/generateToken",
-                       referer + r"/arcgis/tokens/generateToken"]
-    for url2test in token_url_array:
-        if test_url(url2test):
-            tokenUrl = url2test
-            break
-    if tokenUrl:
-        tokenResponse = urllib2.urlopen(tokenUrl, urllib.urlencode(query_dict))
-        token = json.loads(tokenResponse.read(), strict=False)
-    else:
-        token = {"error": "unable to get token"}
-    return token
 
 
 def get_data(query):
@@ -318,78 +396,6 @@ def createLayerFile(service_info, service_name, layer_source, output_folder):
         output_msg(str(e), severity=1)
         output_msg("Failed yer layer file drawin'")
 
-
-def extract_domain_info(service_info):
-    """extract domain information from service info"""
-    # TODO return json of domains?
-    ## find fields array, loop through fields and find field name and domain not null, extract domain values from 'domain' codedValues array
-    # "domain":{"type":"codedValue","name":"RampType","codedValues":[{"name":"Perpendicular","code":"Perpendicular"},{"name":"Diagonal","code":"Diagonal"},{"name":"Parallel","code":"Parallel"},{"name":"Combination","code":"Combination"},{"name":"Built Up","code":"Built Up"},{"name":"Depressed","code":"Depressed"},{"name":"Other","code":"Other"},{"name":"Unknown","code":"Unknown"}]}
-
-##    fields = service_info.get('fields')
-##    for field in fields:
-##        domain = field[0].get('domain') # type, name, coded values or null
-##        if domain:
-##            dname = domain.get('name')
-##            dtype = domain.get('type')
-##            dcodedvalues = domain.get('codedValues')
-    pass
-
-
-def create_domains_from(domain_json):
-    """create domains from json"""
-    #TODO extract individual domains
-    #pass each to appropriate domain writer
-    pass
-
-
-def authenticate(username, password, service_endpoint, referring_domain):
-    # set referring domain if supplied
-    # or try to infer it from url
-    if referring_domain != '':
-        if referring_domain[:5] == 'http:':
-            refer = 'https' + referring_domain[4:]
-        else:
-            refer = referring_domain
-    else:
-        u = urlparse(service_endpoint)
-        if u.netloc.find('arcgis.com') > -1:
-            # is an esri domain
-            refer = r"https://www.arcgis.com"
-        else:
-            # generate from service url and hope it works
-            if u.scheme == 'http':
-                # must be https for token
-                refer = urlunsplit(['https', u.netloc, '', '', ''])
-            else:
-                refer = urlunsplit([u.scheme, u.netloc, '', '', ''])
-
-    # set up authentication
-    # http://stackoverflow.com/questions/1045886/https-log-in-with-urllib2
-    passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
-    # this creates a password manager
-    passman.add_password(None, service_endpoint, username, password)
-    # because we have put None at the start it will always
-    # use this username/password combination for  urls
-    # for which `theurl` is a super-url
-
-    authhandler = urllib2.HTTPBasicAuthHandler(passman)
-    # create the AuthHandler
-    opener = urllib2.build_opener(authhandler)
-    # user agent spoofing
-    opener.addheaders = [('User-agent', 'Mozilla/5.0')]
-
-    urllib2.install_opener(opener)
-    # All calls to urllib2.urlopen will now use our handler
-    # Make sure not to include the protocol in with the URL, or
-    # HTTPPasswordMgrWithDefaultRealm will be very confused.
-    # You must (of course) use it when fetching the page though.
-    # authentication is now handled automatically in urllib2.urlopen
-
-    # generate a token
-    tokenjson = gentoken(username=username, password=password, referer=refer)
-    return tokenjson
-
-
 #-------------------------------------------------
 def main():
     global count_tries
@@ -442,27 +448,28 @@ def main():
         else:
             output_folder = output_desc.path
 
+        adapter_name = get_adapter_name(service_endpoint)
+        use_referer_mode = False
+        if referring_domain != '':
+            referring_domain = referring_domain.replace('http:', 'https:')
+            use_referer_mode = True
+        else:
+            referring_domain = get_referring_domain(service_endpoint)
+            if referring_domain == r"https://www.arcgis.com":
+                use_referer_mode = True
+
+        # build a generic opener with the use agent spoofed
+        opener = urllib2.build_opener()
+        opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+        urllib2.install_opener(opener)
+
         token = ''
         if username and not existing_token:
-            tokenjson = authenticate(username, password, service_endpoint, referring_domain)
-            if "token" in tokenjson:
-                token = tokenjson['token']
-            else:
-                output_msg(
-                    "Avast! The scurvy gatekeeper says 'Could not generate a token with the username and password provided'.",
-                    severity=2)
-                if "error" in tokenjson:
-                    output_msg(tokenjson["error"], severity=2)
-                elif "token" not in tokenjson:
-                    output_msg(tokenjson['messages'], severity=2)
-                raise ValueError("Token Error")
+            token = gentoken(username=username, password=password, referer=referring_domain, adapter_name=adapter_name,
+                             use_referer_mode=use_referer_mode)
         elif existing_token:
             token = existing_token
-        else:
-            # build a generic opener with the use agent spoofed
-            opener = urllib2.build_opener()
-            opener.addheaders = [('User-agent', 'Mozilla/5.0')]
-            urllib2.install_opener(opener)
+
         tokenstring = ''
         if len(token) > 0:
             tokenstring = '&token=' + token
