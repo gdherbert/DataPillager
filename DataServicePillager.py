@@ -59,7 +59,6 @@ def trace():
 def output_msg(msg, severity=0):
     """ Adds a Message (in case this is run as a tool)
         and also prints the message to the screen (standard output)
-
         :param msg: text to output
         :param severity: 0 = none, 1 = warning, 2 = error
     """
@@ -401,16 +400,16 @@ def main():
 
     try:
         # arcgis toolbox parameters
-        service_endpoint = arcpy.GetParameterAsText(0) # Service endpoint required
-        output_workspace = arcpy.GetParameterAsText(1) # gdb/folder to put the results required
-        max_tries = arcpy.GetParameter(2) # max number of retries allowed required
-        sleep_time = arcpy.GetParameter(3) # max number of retries allowed required`
-        strict_mode = arcpy.GetParameter(4) # JSON check True/False required
-        username = arcpy.GetParameterAsText(5)
-        password = arcpy.GetParameterAsText(6)
-        referring_domain = arcpy.GetParameterAsText(7) # auth domain
-        existing_token = arcpy.GetParameterAsText(8) # valid token value
-        query_str = arcpy.GetParameterAsText(9) # query string
+        service_endpoint = arcpy.GetParameterAsText(0) # String - URL of Service endpoint required
+        output_workspace = arcpy.GetParameterAsText(1) # String - gdb/folder to put the results required
+        max_tries = arcpy.GetParameter(2) # Int - max number of retries allowed required
+        sleep_time = arcpy.GetParameter(3) # Int - max number of retries allowed required`
+        strict_mode = arcpy.GetParameter(4) # Bool - JSON check True/False required
+        username = arcpy.GetParameterAsText(5) # String - username optional
+        password = arcpy.GetParameterAsText(6) # String - password optional
+        referring_domain = arcpy.GetParameterAsText(7) # String - url of auth domain
+        existing_token = arcpy.GetParameterAsText(8) # String - valid token value
+        query_str = arcpy.GetParameterAsText(9) # String - valid SQL query string
 
         sanity_max_record_count = 10000
 
@@ -544,11 +543,6 @@ def main():
                 with open(info_file, 'w') as i_file:
                     json.dump(service_info, i_file, sort_keys=True, indent=4, separators=(',', ': '))
                     output_msg("Yar! {0} Service info stashed in '{1}'".format(service_name, info_file))
-
-                # TODO extract domains
-                # domain_json = extract_domain_info(service_info)
-                # turn domain info into domains or table depending on output
-                # create_domains_from(domain_json)
 
                 if supports_json:
                     try:
