@@ -335,9 +335,9 @@ def combine_data(fc_list, output_fc):
     for fc in fc_list:
         if fc_list.index(fc) == 0:
             # append to first dataset. much faster
-            output_msg("Prepping first dataset {0}".format(fc))
+            output_msg("Prepping yer first dataset {0}".format(fc))
             if arcpy.Exists(output_fc):
-                output_msg("{0} exists, deleting...".format(output_fc))
+                output_msg("Avast! {0} exists, deleting...".format(output_fc), severity=1)
                 arcpy.Delete_management(output_fc)
             arcpy.Rename_management(fc, output_fc) # rename the first dataset to the final name
             output_msg("Created {0}".format(output_fc))
@@ -489,7 +489,6 @@ def main():
             max_record_count = 0
             feature_count = 0
             final_geofile = ''
-            has_geom_field = False #has a geometry field
 
             output_msg("Now pillagin' yer data from {0}".format(slyr))
             service_info_call = urllib2.urlopen(slyr + '?f=json' + tokenstring).read()
@@ -525,8 +524,7 @@ def main():
                             ftype = field.get('type')
                             if ftype == 'esriFieldTypeOID':
                                 objectid_field = field.get('name')
-                            elif ftype == 'esriFieldTypeGeometry':
-                                has_geom_field = True
+
                 else:
                     output_msg("No field list returned - come about with {0}".format(objectid_field))
 
@@ -579,7 +577,7 @@ def main():
                         else:
                             output_msg('Unable to get OID values: {}'.format(feature_query))
 
-                        if feature_OIDs and has_geom_field:
+                        if feature_OIDs:
                             OID_count = len(feature_OIDs)
                             sortie_count = OID_count//max_record_count + (OID_count % max_record_count > 0)
                             output_msg("{0} records, in chunks of {1}, err, that be {2} sorties. Ready lads!".format(OID_count, max_record_count, sortie_count))
