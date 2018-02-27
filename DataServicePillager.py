@@ -83,11 +83,11 @@ def output_msg(msg, severity=0):
 def test_url(token_url_test):
     try:
         if urllib2.urlopen(token_url_test):
-            output_msg("successful url test: {}".format(token_url_test))
+            output_msg("ho, a successful url test: {}".format(token_url_test))
             return token_url_test
     except urllib2.HTTPError as e:
         if e.code == 404:
-            output_msg("404 error: {}".format(token_url_test))
+            output_msg("Arr, 404 error: {}".format(token_url_test))
             return None
     except urllib2.URLError as e:
         return None
@@ -97,7 +97,6 @@ def get_adapter_name(service_endpoint):
     """extract web adaptor name from endpoint
     :param service_endpoint url of service
     """
-    adapter_name = 'arcgis'
     u = urlparse(service_endpoint)
     if u.netloc.find('arcgis.com') > -1:
         # is an esri domain
@@ -153,7 +152,7 @@ def get_referring_domain(service_endpoint):
 #     # authentication is now handled automatically in urllib2.urlopen
 
 
-def gentoken(username, password, referer, adapter_name, use_referer_mode=False, expiration=240):
+def get_token(username, password, referer, adapter_name, use_referer_mode=False, expiration=240):
     """ Get access token.
         :param username: valid username
         :param password: valid password
@@ -174,30 +173,30 @@ def gentoken(username, password, referer, adapter_name, use_referer_mode=False, 
         query_dict['client'] = 'referer'
 
     # check for ArcGIS token generator url
-    tokenUrl = None
+    token_url = None
     token_url_array = [referer + r"/sharing/rest/generateToken",
                        referer + r"/" + adapter_name + r"/tokens/generateToken"]
     for url2test in token_url_array:
         if test_url(url2test):
-            tokenUrl = url2test
+            token_url = url2test
             break
-    if tokenUrl:
-        tokenResponse = urllib2.urlopen(tokenUrl, urllib.urlencode(query_dict))
-        tokenjson = json.loads(tokenResponse.read(), strict=False)
+    if token_url:
+        token_response = urllib2.urlopen(token_url, urllib.urlencode(query_dict))
+        token_json = json.loads(token_response.read(), strict=False)
     else:
-        tokenjson = {"error": "unable to get token"}
+        token_json = {"error": "unable to get token"}
 
-    if "token" in tokenjson:
-        token = tokenjson['token']
+    if "token" in token_json:
+        token = token_json['token']
         return token
     else:
         output_msg(
             "Avast! The scurvy gatekeeper says 'Could not generate a token with the username and password provided'.",
             severity=2)
-        if "error" in tokenjson:
-            output_msg(tokenjson["error"], severity=2)
-        elif "message" in tokenjson:
-            output_msg(tokenjson['message'], severity=2)
+        if "error" in token_json:
+            output_msg(token_json["error"], severity=2)
+        elif "message" in token_json:
+            output_msg(token_json['message'], severity=2)
         raise ValueError("Token Error")
 
 
@@ -210,7 +209,7 @@ def get_all_the_layers(service_endpoint, tokenstring):
     if service_call and (service_call.find('error') == -1):
         service_layer_info = json.loads(service_call, strict=False)
     else:
-        raise Exception("'service_call' failed to access {0}".format(service_endpoint))
+        raise Exception("Gaaar, 'service_call' failed to access {0}".format(service_endpoint))
     service_version = service_layer_info.get('currentVersion')
 
     service_layers_to_walk = []
@@ -219,9 +218,9 @@ def get_all_the_layers(service_endpoint, tokenstring):
     # search any folders
     if 'folders' in service_layer_info.keys() and len(service_layer_info.get('folders')) > 0:
         catalog_folder = service_layer_info.get('folders')
-        folder_list = [f for f in catalog_folder if f.lower() not in ('utilities')]
+        folder_list = [f for f in catalog_folder if f.lower() not in 'utilities']
         for folder_name in folder_list:
-            output_msg("I be searching {} for hidden treasure...".format(folder_name), severity=0)
+            output_msg("Ahoy, I be searching {} for hidden treasure...".format(folder_name), severity=0)
             lyr_list = get_all_the_layers(service_endpoint + '/' + folder_name, tokenstring)
             if lyr_list:
                 service_layers_to_walk.extend(lyr_list)
@@ -233,19 +232,18 @@ def get_all_the_layers(service_endpoint, tokenstring):
             servicetype = service['type']
             servicename = service['name']
             if servicetype in ['MapServer', 'FeatureServer']:
+                service_url = service_endpoint + '/' + servicename + '/' + servicetype
                 if servicename.find('/') > -1:
                     folder, sname = servicename.split('/')
                     if service_endpoint.endswith(folder):
                         service_url = service_endpoint + '/' + sname + '/' + servicetype
-                else:
-                    service_url = service_endpoint + '/' + servicename + '/' + servicetype
+                
                 service_layers_to_walk.append(service_url)
 
     if len(service_layers_to_walk) == 0:
         # no services or folders
         service_layers_to_walk.append(service_endpoint)
 
-    # output_msg('{} urls to plunder!'.format(len(service_layers_to_walk)), severity=0)
     for url in service_layers_to_walk:
         # go get the json and information and walk down until you get all the service urls
         service_call = json.load(urllib2.urlopen(url + '?f=json' + tokenstring))
@@ -320,10 +318,10 @@ def get_data(query):
         count_tries += 1
         if count_tries > max_tries:
             count_tries = 0
-            output_msg("Error: ACCESS_FAILED")
+            output_msg("Avast! Error: ACCESS_FAILED")
             return None
         else:
-            output_msg("Attempt {0} of {1}".format(count_tries, max_tries))
+            output_msg("Hold fast, attempt {0} of {1}".format(count_tries, max_tries))
             return get_data(query=query)
 
 
@@ -344,14 +342,14 @@ def combine_data(fc_list, output_fc):
             arcpy.Rename_management(fc, output_fc) # rename the first dataset to the final name
             output_msg("Created {0}".format(output_fc))
             arcpy.CopyFeatures_management(output_fc, fc) # duplicate first one so delete later doesn't fail
-            insertRows = arcpy.da.InsertCursor(output_fc, ["SHAPE@","*"])
+            insert_rows = arcpy.da.InsertCursor(output_fc, ["SHAPE@","*"])
         else:
-            searchRows = arcpy.da.SearchCursor(fc, ["SHAPE@","*"]) # append to first dataset
-            for search_row in searchRows:
-                insertRows.insertRow(search_row)
-            del search_row, searchRows
+            search_rows = arcpy.da.SearchCursor(fc, ["SHAPE@","*"]) # append to first dataset
+            for row in search_rows:
+                insert_rows.insertRow(row)
+            del row, search_rows
             output_msg("Appended {0}...".format(fc))
-    del insertRows
+    del insert_rows
 
 
 def grouper(iterable, n, fillvalue=None):
@@ -368,10 +366,13 @@ def grouper(iterable, n, fillvalue=None):
     #return iter(lambda: list(IT.islice(iterable, n)), [])
 
 
-def createLayerFile(service_info, service_name, layer_source, output_folder):
+def create_layer_file(service_info, service_name, layer_source, output_folder):
     """
     write out a layer file from service renderer information, providing
-     a service name, a layer source and an output folder
+    :param service_info: json (to extract the drawingInfo from)
+    :param service_name: String
+    :param layer_source: String path to file
+    :param output_folder: String path
     """
     try:
         render_info = {"drawingInfo": {"renderer": {}}}
@@ -395,6 +396,7 @@ def createLayerFile(service_info, service_name, layer_source, output_folder):
     except Exception, e:
         output_msg(str(e), severity=1)
         output_msg("Failed yer layer file drawin'")
+
 
 #-------------------------------------------------
 def main():
@@ -465,8 +467,8 @@ def main():
 
         token = ''
         if username and not existing_token:
-            token = gentoken(username=username, password=password, referer=referring_domain, adapter_name=adapter_name,
-                             use_referer_mode=use_referer_mode)
+            token = get_token(username=username, password=password, referer=referring_domain, adapter_name=adapter_name,
+                              use_referer_mode=use_referer_mode)
         elif existing_token:
             token = existing_token
 
@@ -478,7 +480,7 @@ def main():
         output_msg("We be stashing the booty in {0}".format(output_workspace))
 
         service_layers_to_get = get_all_the_layers(service_endpoint, tokenstring)
-        output_msg('{} layers to get'.format(len(service_layers_to_get)))
+        output_msg('Blimey, {} layers to get'.format(len(service_layers_to_get)))
         for slyr in service_layers_to_get:
             count_tries = 0
             out_shapefile_list = [] # for file merging.
@@ -510,7 +512,7 @@ def main():
                                 supports_json = True
                                 break
                     else:
-                        output_msg('Unable to check supported formats. Check {0} for details'.format(info_file))
+                        output_msg('Strict mode scuttled, no supported formats')
                 else:
                     # assume JSON supported
                     supports_json = True
@@ -526,7 +528,7 @@ def main():
                             elif ftype == 'esriFieldTypeGeometry':
                                 has_geom_field = True
                 else:
-                    output_msg("No field list returned - forging ahead with {0}".format(objectid_field))
+                    output_msg("No field list returned - come about with {0}".format(objectid_field))
 
                 # get count
                 if query_str == '':
@@ -633,7 +635,7 @@ def main():
 
                                         out_geofile = os.path.join(output_workspace, out_file_name)
 
-                                        output_msg("Converting json to {0}".format(out_geofile))
+                                        output_msg("Converting yer json to {0}".format(out_geofile))
                                         arcpy.JSONToFeatures_conversion(out_JSON_file, out_geofile)
                                         out_shapefile_list.append(out_geofile)
                                         os.remove(out_JSON_file) # clean up the JSON file
@@ -656,7 +658,7 @@ def main():
                         #combine all the data
                         combine_data(fc_list=out_shapefile_list, output_fc=final_geofile)
 
-                        createLayerFile(service_info=service_info, service_name=service_name, layer_source=final_geofile, output_folder=output_folder)
+                        create_layer_file(service_info=service_info, service_name=service_name, layer_source=final_geofile, output_folder=output_folder)
 
                         end_time = datetime.datetime.today()
                         elapsed_time = end_time - start_time
@@ -705,6 +707,7 @@ def main():
         end_time = datetime.datetime.today()
         elapsed_time = end_time - start_time
         output_msg("Plunderin' done, in " + str(elapsed_time))
+
 
 if __name__ == '__main__':
     main()
