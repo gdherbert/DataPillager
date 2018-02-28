@@ -470,6 +470,8 @@ def main():
                 # add url to info
                 service_info[u'serviceURL'] = slyr
 
+                # assume JSON supported
+                supports_json = True
                 if strict_mode:
                     # check JSON supported
                     supports_json = False
@@ -481,9 +483,6 @@ def main():
                                 break
                     else:
                         output_msg('Strict mode scuttled, no supported formats')
-                else:
-                    # assume JSON supported
-                    supports_json = True
 
                 objectid_field = "OBJECTID"
                 if 'fields' in service_info:
@@ -493,9 +492,8 @@ def main():
                             ftype = field.get('type')
                             if ftype == 'esriFieldTypeOID':
                                 objectid_field = field.get('name')
-
                 else:
-                    output_msg("No field list returned - come about with {0}".format(objectid_field))
+                    output_msg("No field list - come about using {0}!".format(objectid_field))
 
                 # get count
                 if query_str == '':
@@ -511,7 +509,6 @@ def main():
                 # clean up the service name (remove invalid characters)
                 service_name_cl = service_name.encode('ascii', 'ignore') # strip any non-ascii characters that may cause an issue
                 service_name_cl = arcpy.ValidateTableName(service_name_cl, output_workspace) # remove any other problematic characters
-                ##output_msg("'{0}' will be stashed as '{1}'".format(service_name, service_name_cl))
                 info_filename = service_name_cl + "_info.txt"
                 info_file = os.path.join(output_folder, info_filename)
 
@@ -522,7 +519,6 @@ def main():
 
                 if supports_json:
                     try:
-                        # loop through fields in service_info, get objectID field
                         if query_str =='':
                             feat_OIDLIST_query = r"/query?where=" + objectid_field + r"+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=true&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json" + tokenstring
                         else:
@@ -531,7 +527,6 @@ def main():
                         feat_query = r"/query?objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json" + tokenstring
 
                         max_record_count = service_info.get('maxRecordCount') # maximum number of records returned by service at once
-
                         if max_record_count > sanity_max_record_count:
                             output_msg(
                                 "{0} max records is a wee bit large, using {1} instead...".format(max_record_count,
@@ -544,7 +539,7 @@ def main():
                         if feature_query and 'objectIds' in feature_query:
                             feature_OIDs = feature_query["objectIds"]
                         else:
-                            output_msg('Unable to get OID values: {}'.format(feature_query))
+                            output_msg("Blast, no OID values: {}".format(feature_query))
 
                         if feature_OIDs:
                             OID_count = len(feature_OIDs)
@@ -559,8 +554,7 @@ def main():
                                 start_oid = group[0]
                                 end_oid = group[max_record_count-1]
                                 if end_oid is None: # reached the end of the iterables
-                                    # loop through and find last oid
-                                    # need this due to fillvalue of None in grouper
+                                    # loop through and find last oid, need this due to fillvalue of None in grouper
                                     for i in reversed(group):
                                         if i is not None:
                                             end_oid = i
@@ -568,13 +562,17 @@ def main():
 
                                 # >= %3E%3D, <= %3C%3D
                                 if query_str == '':
-                                    where_clause = "&where={0}+%3E%3D+{1}+AND+{2}+%3C%3D+{3}".format(objectid_field, str(start_oid), objectid_field, str(end_oid))
-                                else:
-                                    where_clause = "&where={0}+AND+{1}+%3E%3D+{2}+AND+{3}+%3C%3D+{4}".format(query_str, objectid_field,
+                                    where_clause = "&where={0}+%3E%3D+{1}+AND+{2}+%3C%3D+{3}".format(objectid_field,
                                                                                                      str(start_oid),
                                                                                                      objectid_field,
                                                                                                      str(end_oid))
-                                # response is a string of json with the attr and geom
+                                else:
+                                    where_clause = "&where={0}+AND+{1}+%3E%3D+{2}+AND+{3}+%3C%3D+{4}".format(query_str,
+                                                                                                             objectid_field,
+                                                                                                             str(start_oid),
+                                                                                                             objectid_field,
+                                                                                                             str(end_oid))
+                                # response is a string of json with the attributes and geometry
                                 query = slyr + feat_query + where_clause
                                 response = get_data(query) # expects json object
                                 if not response.get('features'):
@@ -586,7 +584,6 @@ def main():
                                         # convert response to json file on disk then to gdb/shapefile (is fast)
                                         out_JSON_name = service_name_cl + "_" + str(current_iter) + ".json"
                                         out_JSON_file = os.path.join(output_folder, out_JSON_name)
-
                                         with codecs.open(out_JSON_file, 'w', 'utf-8') as out_file:
                                             data = json.dumps(response, ensure_ascii=False)
                                             out_file.write(data)
@@ -597,7 +594,6 @@ def main():
                                             out_file_name = service_name_cl + "_" + str(current_iter) + ".shp"
                                         else:
                                             out_file_name = service_name_cl + "_" + str(current_iter)
-
                                         out_geofile = os.path.join(output_workspace, out_file_name)
 
                                         output_msg("Converting yer json to {0}".format(out_geofile))
@@ -606,10 +602,7 @@ def main():
                                         os.remove(out_JSON_file) # clean up the JSON file
 
                                     current_iter += max_record_count
-
                         else:
-                            # no objectids
-                            output_msg("No feature IDs found!")
                             raise ValueError("Aaar, plunderin' failed")
 
                         # download complete, create a final output
@@ -625,8 +618,7 @@ def main():
 
                         create_layer_file(service_info=service_info, service_name=service_name, layer_source=final_geofile, output_folder=output_folder)
 
-                        end_time = datetime.datetime.today()
-                        elapsed_time = end_time - start_time
+                        elapsed_time = datetime.datetime.today() - start_time
                         output_msg("{0} plundered in {1}".format(final_geofile, str(elapsed_time)))
 
                     except ValueError, e:
@@ -646,7 +638,6 @@ def main():
                                     arcpy.Delete_management(fc)
                             else:
                                 output_msg("Splicin' the data failed - found {0} but expected {1}. Check {2} to see what went wrong.".format(data_count, OID_count, final_geofile))
-
                 else:
                     # no JSON output
                     output_msg("Aaaar, ye service does not support JSON output. Can't do it.")
@@ -669,8 +660,7 @@ def main():
         output_msg(arcpy.GetMessages())
 
     finally:
-        end_time = datetime.datetime.today()
-        elapsed_time = end_time - start_time
+        elapsed_time = datetime.datetime.today() - start_time
         output_msg("Plunderin' done, in " + str(elapsed_time))
 
 
