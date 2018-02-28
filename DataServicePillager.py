@@ -63,13 +63,11 @@ def output_msg(msg, severity=0):
         :param severity: 0 = none, 1 = warning, 2 = error
     """
     print msg
-
     # Split the message on \n first, so that if it's multiple lines,
     #  a GPMessage will be added for each line
     try:
         for string in msg.split('\n'):
             # Add appropriate geoprocessing message
-            #
             if severity == 0:
                 arcpy.AddMessage(string)
             elif severity == 1:
@@ -80,24 +78,27 @@ def output_msg(msg, severity=0):
         pass
 
 
-def test_url(token_url_test):
+def test_url(url_to_test):
+    """test a url for validity (non-404)
+    :param token_url: String
+    """
     try:
-        if urllib2.urlopen(token_url_test):
-            output_msg("ho, a successful url test: {}".format(token_url_test))
-            return token_url_test
+        if urllib2.urlopen(url_to_test):
+            output_msg("Ho, a successful url test: {}".format(url_to_test))
+            return url_to_test
     except urllib2.HTTPError as e:
         if e.code == 404:
-            output_msg("Arr, 404 error: {}".format(token_url_test))
+            output_msg("Arr, 404 error: {}".format(url_to_test))
             return None
     except urllib2.URLError as e:
         return None
 
 
-def get_adapter_name(service_endpoint):
+def get_adapter_name(url_string):
     """extract web adaptor name from endpoint
-    :param service_endpoint url of service
+    :param url_string: url of service
     """
-    u = urlparse(service_endpoint)
+    u = urlparse(url_string)
     if u.netloc.find('arcgis.com') > -1:
         # is an esri domain
         refer = r"https://www.arcgis.com"
@@ -107,70 +108,38 @@ def get_adapter_name(service_endpoint):
     return adapter_name
 
 
-def get_referring_domain(service_endpoint):
-    """get referer url
-    :param service_endpoint url of service
+def get_referring_domain(url_string):
+    """get referring domain part of url
+    :param url_string url of service
     """
-    u = urlparse(service_endpoint)
+    u = urlparse(url_string)
     if u.netloc.find('arcgis.com') > -1:
         # is an esri domain
-        referer = r"https://www.arcgis.com"
+        ref_domain = r"https://www.arcgis.com"
     else:
         # generate from service url and hope it works
         if u.scheme == 'http':
-            referer = urlunsplit(['https', u.netloc, '', '', ''])
+            ref_domain = urlunsplit(['https', u.netloc, '', '', ''])
         else:
-            referer = urlunsplit([u.scheme, u.netloc, '', '', ''])
-    return referer
+            ref_domain = urlunsplit([u.scheme, u.netloc, '', '', ''])
+    return ref_domain
 
 
-# def set_auth_manager(username, password, service_endpoint):
-#     """set up authentication
-#     :param username
-#     :param password
-#     :param service_endpoint
-#     """
-#     # from http://stackoverflow.com/questions/1045886/https-log-in-with-urllib2
-#     passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
-#     # this creates a password manager
-#     passman.add_password(None, service_endpoint, username, password)
-#     # because we have put None at the start it will always
-#     # use this username/password combination for  urls
-#     # for which `theurl` is a super-url
-#
-#     authhandler = urllib2.HTTPBasicAuthHandler(passman)
-#     # create the AuthHandler
-#     opener = urllib2.build_opener(authhandler)
-#     # user agent spoofing
-#     opener.addheaders = [('User-agent', 'Mozilla/5.0')]
-#
-#     urllib2.install_opener(opener)
-#     # All calls to urllib2.urlopen will now use our handler
-#     # Make sure not to include the protocol in with the URL, or
-#     # HTTPPasswordMgrWithDefaultRealm will be very confused.
-#     # You must (of course) use it when fetching the page though.
-#     # authentication is now handled automatically in urllib2.urlopen
-
-
-def get_token(username, password, referer, adapter_name, use_referer_mode=False, expiration=240):
-    """ Get access token.
+def get_token(username, password, referer, adapter_name, client_type='requestip', expiration=240):
+    """ Get Esri access token. Uses requestip by default
         :param username: valid username
         :param password: valid password
         :param referer: referer url
         :param adapter_name: name of the arcgis server adapter
-        :param use_referer_mode: whether to use referer value over requestip (default False uses requestip)
+        :param client_type: whether to use referer value over requestip (default False uses requestip)
         :param expiration: optional validity time in minutes (default 240)
     """
     query_dict = {'username': username,
                   'password': password,
                   'expiration': str(expiration),
-                  #'client': 'referer',
-                  'client': 'requestip',
+                  'client': client_type,
                   'referer': referer,
                   'f': 'json'}
-    # AGO case
-    if use_referer_mode:
-        query_dict['client'] = 'referer'
 
     # check for ArcGIS token generator url
     token_url = None
@@ -451,14 +420,14 @@ def main():
             output_folder = output_desc.path
 
         adapter_name = get_adapter_name(service_endpoint)
-        use_referer_mode = False
+        token_client_type = 'requestip'
         if referring_domain != '':
             referring_domain = referring_domain.replace('http:', 'https:')
-            use_referer_mode = True
+            token_client_type = 'referer'
         else:
             referring_domain = get_referring_domain(service_endpoint)
             if referring_domain == r"https://www.arcgis.com":
-                use_referer_mode = True
+                token_client_type = 'referer'
 
         # build a generic opener with the use agent spoofed
         opener = urllib2.build_opener()
@@ -468,7 +437,7 @@ def main():
         token = ''
         if username and not existing_token:
             token = get_token(username=username, password=password, referer=referring_domain, adapter_name=adapter_name,
-                              use_referer_mode=use_referer_mode)
+                              client_type=token_client_type)
         elif existing_token:
             token = existing_token
 
@@ -480,7 +449,7 @@ def main():
         output_msg("We be stashing the booty in {0}".format(output_workspace))
 
         service_layers_to_get = get_all_the_layers(service_endpoint, tokenstring)
-        output_msg('Blimey, {} layers to get'.format(len(service_layers_to_get)))
+        output_msg("Blimey, {} layers for the pillagin'".format(len(service_layers_to_get)))
         for slyr in service_layers_to_get:
             count_tries = 0
             out_shapefile_list = [] # for file merging.
@@ -614,12 +583,10 @@ def main():
                                     feature_dict = response["features"] # load the features so we can check they are not empty
 
                                     if len(feature_dict) != 0:
-                                        # convert response to json file on disk then to shapefile (is fast)
+                                        # convert response to json file on disk then to gdb/shapefile (is fast)
                                         out_JSON_name = service_name_cl + "_" + str(current_iter) + ".json"
                                         out_JSON_file = os.path.join(output_folder, out_JSON_name)
 
-                                        #with open(out_JSON_file, 'w') as out_file:
-                                        #    out_file.write(response.encode('utf-8')) #back from unicode
                                         with codecs.open(out_JSON_file, 'w', 'utf-8') as out_file:
                                             data = json.dumps(response, ensure_ascii=False)
                                             out_file.write(data)
@@ -663,7 +630,7 @@ def main():
                         output_msg("{0} plundered in {1}".format(final_geofile, str(elapsed_time)))
 
                     except ValueError, e:
-                        output_msg("ERROR: " + str(e), severity=2)
+                        output_msg(str(e), severity=2)
 
                     except Exception, e:
                         line, err = trace()
