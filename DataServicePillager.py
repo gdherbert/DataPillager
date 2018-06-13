@@ -378,17 +378,17 @@ def create_layer_file(service_info, service_name, layer_source, output_folder):
         output_msg(str(e), severity=1)
         output_msg("Failed yer layer file drawin'")
 
-def make_service_name(service_info, output_workspace, output_folder_len):
+def make_service_name(service_info, output_workspace, output_folder_path_len):
     global service_output_name_tracking_list
     global output_type
 
     # establish a unique name that isn't too long
-    # TODO 160 character limit for filegeodatabase
-    max_str_len = 230  # sanity length for windows systems
+    # 160 character limit for filegeodatabase
+    max_path_length = 230  # sanity length for windows systems
     if output_type == 'Workspace':
         max_name_len = 150  # based on fgdb
     else:
-        max_name_len = max_str_len - output_folder_len
+        max_name_len = max_path_length - output_folder_path_len
     
     parent_name = ''
     parent_id = ''
@@ -410,9 +410,9 @@ def make_service_name(service_info, output_workspace, output_folder_len):
         parent_name = service_info.get('parentLayer').get('name')
         parent_id = str(service_info.get('parentLayer').get('id'))
 
-    if output_folder_len  + service_name_len > max_str_len: # can be written to disc
+    if output_folder_path_len  + service_name_len > max_path_length: # can be written to disc
         # shorten the service name
-        max_len = max_str_len - output_folder_len
+        max_len = max_path_length - output_folder_path_len
         if max_len < service_name_len:
             service_name_cl = service_name_cl[:max_len]
 
@@ -517,12 +517,12 @@ def main():
         output_msg("Blimey, {} layers for the pillagin'".format(len(service_layers_to_get)))
         for slyr in service_layers_to_get:
             count_tries = 0
-            out_shapefile_list = [] # for file merging.
+            downloaded_fc_list = [] # for file merging.
             response = None
             current_iter = 0
             max_record_count = 0
             feature_count = 0
-            final_geofile = ''
+            final_fc = ''
 
             output_msg("Now pillagin' yer data from {0}".format(slyr))
             service_info_call = urllib2.urlopen(slyr + '?f=json' + tokenstring).read()
@@ -582,12 +582,12 @@ def main():
 
                 if supports_json:
                     try:
-                        if query_str =='':
-                            feat_OIDLIST_query = r"/query?where=" + objectid_field + r"+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=true&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json" + tokenstring
-                        else:
-                            feat_OIDLIST_query = r"/query?where=" + query_str + r"&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=true&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json" + tokenstring
                         # to query using geometry,&geometry=   &geometryType= esriGeometryEnvelope &inSR= and probably spatial relationship and buffering
-                        feat_query = r"/query?objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json" + tokenstring
+                        feat_data_query = r"/query?outFields=*&returnGeometry=true&returnIdsOnly=false&returnCountOnly=false&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&maxAllowableOffset=&geometryPrecision=&outSR=&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json" + tokenstring
+                        if query_str =='':
+                            feat_OIDLIST_query = r"/query?where=" + objectid_field + r"+%3E+0&returnGeometry=false&returnIdsOnly=true&returnCountOnly=false&returnExtentOnly=false&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&maxAllowableOffset=&geometryPrecision=&outSR=&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json" + tokenstring
+                        else:
+                            feat_OIDLIST_query = r"/query?where=" + query_str + r"&returnGeometry=false&returnIdsOnly=true&returnCountOnly=false&returnExtentOnly=false&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Meter&outFields=&maxAllowableOffset=&geometryPrecision=&outSR=&orderByFields=&groupByFieldsForStatistics=&outStatistics=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&f=json" + tokenstring
 
                         max_record_count = service_info.get('maxRecordCount') # maximum number of records returned by service at once
                         if max_record_count > sanity_max_record_count:
@@ -598,11 +598,11 @@ def main():
 
                         # extract using actual OID values is the safest way
                         feature_OIDs = None
-                        feature_query = json.loads(urllib2.urlopen(slyr + feat_OIDLIST_query).read())
-                        if feature_query and 'objectIds' in feature_query:
-                            feature_OIDs = feature_query["objectIds"]
+                        feature_OID_query = json.loads(urllib2.urlopen(slyr + feat_OIDLIST_query).read())
+                        if feature_OID_query and 'objectIds' in feature_OID_query:
+                            feature_OIDs = feature_OID_query["objectIds"]
                         else:
-                            output_msg("Blast, no OID values: {}".format(feature_query))
+                            output_msg("Blast, no OID values: {}".format(feature_OID_query))
 
                         if feature_OIDs:
                             OID_count = len(feature_OIDs)
@@ -636,7 +636,7 @@ def main():
                                                                                                              objectid_field,
                                                                                                              str(end_oid))
                                 # response is a string of json with the attributes and geometry
-                                query = slyr + feat_query + where_clause
+                                query = slyr + feat_data_query + where_clause
                                 response = get_data(query) # expects json object
                                 if not response.get('features'):
                                     raise ValueError("Abandon ship! Data access failed! Check what ye manag'd to plunder before failure.")
@@ -669,7 +669,7 @@ def main():
                                         # may not be needed if using a featureSet()
                                         arcpy.JSONToFeatures_conversion(out_JSON_file, out_geofile)
                                         ##arcpy.JSONToFeatures_conversion(fs, out_geofile)
-                                        out_shapefile_list.append(out_geofile)
+                                        downloaded_fc_list.append(out_geofile)
                                         os.remove(out_JSON_file) # clean up the JSON file
 
                                     current_iter += 1
@@ -678,19 +678,19 @@ def main():
 
                         # download complete, create a final output
                         if output_type == "Folder":
-                            final_geofile = os.path.join(output_workspace, service_name_cl + ".shp")
+                            final_fc = os.path.join(output_workspace, service_name_cl + ".shp")
                         else:
-                            final_geofile = os.path.join(output_workspace, service_name_cl)
+                            final_fc = os.path.join(output_workspace, service_name_cl)
 
-                        output_msg("Stashin' all the booty in '{0}'".format(final_geofile))
+                        output_msg("Stashin' all the booty in '{0}'".format(final_fc))
 
                         #combine all the data
-                        combine_data(fc_list=out_shapefile_list, output_fc=final_geofile)
+                        combine_data(fc_list=downloaded_fc_list, output_fc=final_fc)
 
-                        create_layer_file(service_info=service_info, service_name=service_name_cl, layer_source=final_geofile, output_folder=output_folder)
+                        create_layer_file(service_info=service_info, service_name=service_name_cl, layer_source=final_fc, output_folder=output_folder)
 
                         elapsed_time = datetime.datetime.today() - start_time
-                        output_msg("{0} plundered in {1}".format(final_geofile, str(elapsed_time)))
+                        output_msg("{0} plundered in {1}".format(final_fc, str(elapsed_time)))
 
                     except ValueError, e:
                         output_msg(str(e), severity=2)
@@ -701,14 +701,14 @@ def main():
                         output_msg(arcpy.GetMessages())
 
                     finally:
-                        if arcpy.Exists(final_geofile):
-                            data_count = int(arcpy.GetCount_management(final_geofile)[0])
+                        if arcpy.Exists(final_fc):
+                            data_count = int(arcpy.GetCount_management(final_fc)[0])
                             if data_count == OID_count: #we got it all
                                 output_msg("Scrubbing the decks...")
-                                for fc in out_shapefile_list:
+                                for fc in downloaded_fc_list:
                                     arcpy.Delete_management(fc)
                             else:
-                                output_msg("Splicin' the data failed - found {0} but expected {1}. Check {2} to see what went wrong.".format(data_count, OID_count, final_geofile))
+                                output_msg("Splicin' the data failed - found {0} but expected {1}. Check {2} to see what went wrong.".format(data_count, OID_count, final_fc))
                 else:
                     # no JSON output
                     output_msg("Aaaar, ye service does not support JSON output. Can't do it.")
