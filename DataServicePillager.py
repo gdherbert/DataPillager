@@ -713,11 +713,8 @@ def main():
                     # no JSON output
                     output_msg("Aaaar, ye service does not support JSON output. Can't do it.")
             else:
-                if service_info.get('error'):
-                    # service info error
-                    output_msg("Error: {0}".format(service_info.get('error')), severity=2)
-                else:
-                    output_msg('Layer skipped')
+                # service info error
+                output_msg("Error: {0}".format(service_info.get('error')), severity=2)
 
     except ValueError, e:
         output_msg("ERROR: " + str(e), severity=2)
