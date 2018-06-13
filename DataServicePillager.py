@@ -33,6 +33,7 @@ try:
     from urlparse import urlparse
     from urlparse import urlunsplit
     import itertools
+    import re
 except ImportError, e:
     print e
     sys.exit()
