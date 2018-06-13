@@ -377,13 +377,65 @@ def create_layer_file(service_info, service_name, layer_source, output_folder):
         output_msg(str(e), severity=1)
         output_msg("Failed yer layer file drawin'")
 
+def make_service_name(service_info, output_workspace, output_folder_len):
+    global service_output_name_tracking_list
+    global output_type
+
+    # establish a unique name that isn't too long
+    # TODO 160 character limit for filegeodatabase
+    max_str_len = 230  # sanity length for windows systems
+    if output_type == 'Workspace':
+        max_name_len = 150  # based on fgdb
+    else:
+        max_name_len = max_str_len - output_folder_len
+    
+    parent_name = ''
+    parent_id = ''
+    service_name = service_info.get('name')
+    service_id = str(service_info.get('id'))
+
+    # clean up the service name (remove invalid characters)
+    service_name_cl = service_name.encode('ascii', 'ignore')  # strip any non-ascii characters that may cause an issue
+    # remove multiple underscores and any other problematic characters
+    service_name_cl = re.sub(r'[_]+', '_', arcpy.ValidateTableName(service_name_cl, output_workspace))
+    service_name_cl = service_name_cl.rstrip('_')
+
+    if len(service_name_cl) > max_name_len:
+        service_name_cl = service_name_cl[:max_name_len]
+
+    service_name_len = len(service_name_cl)
+
+    if service_info.get('parentLayer'):
+        parent_name = service_info.get('parentLayer').get('name')
+        parent_id = str(service_info.get('parentLayer').get('id'))
+
+    if output_folder_len  + service_name_len > max_str_len: # can be written to disc
+        # shorten the service name
+        max_len = max_str_len - output_folder_len
+        if max_len < service_name_len:
+            service_name_cl = service_name_cl[:max_len]
+
+    # check if name already exists
+    if service_name_cl not in service_output_name_tracking_list:
+        service_output_name_tracking_list.append(service_name_cl)
+    else:
+        if service_name_cl + "_" + service_id not in service_output_name_tracking_list:
+            service_name_cl += "_" + service_id
+            service_output_name_tracking_list.append(service_name_cl)
+        else:
+            service_name_cl += parent_id + "_" + service_id
+
+    return service_name_cl
+
 
 #-------------------------------------------------
 def main():
     global count_tries
     global max_tries
     global sleep_time
-
+    global service_output_name_tracking_list
+    global output_type
+    
     start_time = datetime.datetime.today()
 
     try:
@@ -402,6 +454,7 @@ def main():
         sanity_max_record_count = 10000
 
         # to query by geometry need [xmin,ymin,xmax,ymax], spatial reference, and geometryType (eg esriGeometryEnvelope
+        service_output_name_tracking_list = []
 
         if service_endpoint == '':
             output_msg("Avast! Can't plunder nothing from an empty url! Time to quit.")
@@ -516,17 +569,15 @@ def main():
                     feature_count = json.loads(feature_count_call)
                     service_info[u'FeatureCount'] = feature_count.get('count')
 
-                service_name = service_info.get('name')
-                # clean up the service name (remove invalid characters)
-                service_name_cl = service_name.encode('ascii', 'ignore') # strip any non-ascii characters that may cause an issue
-                service_name_cl = arcpy.ValidateTableName(service_name_cl, output_workspace) # remove any other problematic characters
+                service_name_cl = make_service_name(service_info, output_workspace, len(output_folder))
+
                 info_filename = service_name_cl + "_info.txt"
                 info_file = os.path.join(output_folder, info_filename)
 
                 # write out the service info for reference
                 with open(info_file, 'w') as i_file:
                     json.dump(service_info, i_file, sort_keys=True, indent=4, separators=(',', ': '))
-                    output_msg("Yar! {0} Service info stashed in '{1}'".format(service_name, info_file))
+                    output_msg("Yar! {0} Service info stashed in '{1}'".format(service_name_cl, info_file))
 
                 if supports_json:
                     try:
