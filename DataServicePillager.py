@@ -320,9 +320,10 @@ def combine_data(fc_list, output_fc):
             if arcpy.Exists(output_fc):
                 output_msg("Avast! {0} exists, deleting...".format(output_fc), severity=1)
                 arcpy.Delete_management(output_fc)
-            arcpy.Rename_management(fc, output_fc) # rename the first dataset to the final name
+            arcpy.CopyFeatures_management(fc, output_fc)  # create dataset to append to
+            ##arcpy.Rename_management(fc, output_fc) # rename the first dataset to the final name
             output_msg("Created {0}".format(output_fc))
-            arcpy.CopyFeatures_management(output_fc, fc) # duplicate first one so delete later doesn't fail
+            ##arcpy.CopyFeatures_management(output_fc, fc) # duplicate first one so delete later doesn't fail
             insert_rows = arcpy.da.InsertCursor(output_fc, ["SHAPE@","*"])
         else:
             search_rows = arcpy.da.SearchCursor(fc, ["SHAPE@","*"]) # append to first dataset
