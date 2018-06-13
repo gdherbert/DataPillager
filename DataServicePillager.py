@@ -645,7 +645,13 @@ def main():
 
                                     if len(feature_dict) != 0:
                                         # convert response to json file on disk then to gdb/shapefile (is fast)
-                                        out_JSON_name = service_name_cl + "_" + str(current_iter) + ".json"
+                                        # can hit long filename issue!!!!
+                                        # look at an arcpy.FeatureSet() to hold the data
+                                        # some services produce JSON that errors a FeatureSet()
+                                        ##fs = arcpy.FeatureSet()
+                                        ##fs.load(response)
+
+                                        out_JSON_name = service_name_cl + str(current_iter) + ".json"
                                         out_JSON_file = os.path.join(output_folder, out_JSON_name)
                                         with codecs.open(out_JSON_file, 'w', 'utf-8') as out_file:
                                             data = json.dumps(response, ensure_ascii=False)
@@ -654,17 +660,19 @@ def main():
                                         output_msg("Nabbed some json data fer ye: '{0}', oids {1} to {2}".format(out_JSON_name, start_oid, end_oid))
 
                                         if output_type == "Folder":
-                                            out_file_name = service_name_cl + "_" + str(current_iter) + ".shp"
+                                            out_file_name = service_name_cl + str(current_iter) + ".shp"
                                         else:
-                                            out_file_name = service_name_cl + "_" + str(current_iter)
+                                            out_file_name = service_name_cl + str(current_iter)
                                         out_geofile = os.path.join(output_workspace, out_file_name)
 
                                         output_msg("Converting yer json to {0}".format(out_geofile))
+                                        # may not be needed if using a featureSet()
                                         arcpy.JSONToFeatures_conversion(out_JSON_file, out_geofile)
+                                        ##arcpy.JSONToFeatures_conversion(fs, out_geofile)
                                         out_shapefile_list.append(out_geofile)
                                         os.remove(out_JSON_file) # clean up the JSON file
 
-                                    current_iter += max_record_count
+                                    current_iter += 1
                         else:
                             raise ValueError("Aaar, plunderin' failed")
 
@@ -679,7 +687,7 @@ def main():
                         #combine all the data
                         combine_data(fc_list=out_shapefile_list, output_fc=final_geofile)
 
-                        create_layer_file(service_info=service_info, service_name=service_name, layer_source=final_geofile, output_folder=output_folder)
+                        create_layer_file(service_info=service_info, service_name=service_name_cl, layer_source=final_geofile, output_folder=output_folder)
 
                         elapsed_time = datetime.datetime.today() - start_time
                         output_msg("{0} plundered in {1}".format(final_geofile, str(elapsed_time)))
