@@ -235,16 +235,24 @@ def get_all_the_layers(service_endpoint, tokenstring):
             # has sub layers, get em all
             for lyr in service_layers:
                 if not lyr.get('subLayerIds'):  # ignore group layers
-                    lyr_id = lyr.get('id')
+                    lyr_id = str(lyr.get('id'))
                     if service_layer_type == 'layers':
-                        sub_layer_url = url + '/' + str(lyr_id)
+                        sub_layer_url = url + '/' + lyr_id
+                        lyr_list = get_all_the_layers(sub_layer_url, tokenstring)
+                        if lyrlist:
+                            service_layers_to_walk.extend(lyr_list)
                         # add the full url
-                        service_layers_to_get.append(sub_layer_url)
+                        else:
+                            service_layers_to_get.append(sub_layer_url)
                     elif service_layer_type == 'sublayers':
-                        # handled differently, drop the last section and use id
-                        sub_endpoint = url.rsplit('/', 1)
+                        # handled differently, drop the parent layer id and use sublayer id
+                        sub_endpoint = url.rsplit('/', 1)[0]
                         sub_layer_url = sub_endpoint + '/' + lyr_id
-                        service_layers_to_get.append(sub_layer_url)
+                        lyr_list = get_all_the_layers(sub_layer_url, tokenstring)
+                        if lyr_list:
+                            service_layers_to_walk.extend(lyr_list)
+                        else:
+                            service_layers_to_get.append(sub_layer_url)
         else:
             # no sub layers
             # check if group layer
