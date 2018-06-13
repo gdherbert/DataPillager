@@ -175,10 +175,13 @@ def get_all_the_layers(service_endpoint, tokenstring):
     :param tokenstring string containing token for authentication
     """
     service_call = urllib2.urlopen(service_endpoint + '?f=json' + tokenstring).read()
-    if service_call and (service_call.find('error') == -1):
+    if service_call:
         service_layer_info = json.loads(service_call, strict=False)
+        if service_layer_info.get('error'):
+            raise Exception("Gaaar, 'service_call' failed to access {0}".format(service_endpoint))
     else:
         raise Exception("Gaaar, 'service_call' failed to access {0}".format(service_endpoint))
+
     service_version = service_layer_info.get('currentVersion')
 
     service_layers_to_walk = []
