@@ -240,7 +240,7 @@ def get_all_the_layers(service_endpoint, tokenstring):
                     if service_layer_type == 'layers':
                         sub_layer_url = url + '/' + lyr_id
                         lyr_list = get_all_the_layers(sub_layer_url, tokenstring)
-                        if lyrlist:
+                        if lyr_list:
                             service_layers_to_walk.extend(lyr_list)
                         # add the full url
                         else:
@@ -349,9 +349,6 @@ def grouper(iterable, n, fillvalue=None):
     """
     args = [iter(iterable)] * n
     return itertools.izip_longest(*args, fillvalue=fillvalue)
-    # alternative without fillvalue to test
-    # http://stackoverflow.com/questions/3992735/python-generator-that-groups-another-iterable-into-groups-of-n
-    #return iter(lambda: list(IT.islice(iterable, n)), [])
 
 
 def create_layer_file(service_info, service_name, layer_source, output_folder):
