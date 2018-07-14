@@ -681,7 +681,7 @@ def main():
 
                                     current_iter += 1
                         else:
-                            raise ValueError("Aaar, plunderin' failed")
+                            raise ValueError("Aaar, plunderin' failed, feature OIDs is None")
 
                         # download complete, create a final output
                         if output_type == "Folder":
