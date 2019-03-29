@@ -369,22 +369,25 @@ def create_layer_file(service_info, service_name, layer_source, output_folder):
     """
     try:
         render_info = {"drawingInfo": {"renderer": {}}}
-        render_info["drawingInfo"]['renderer'] = service_info.get('drawingInfo').get('renderer')
+        if service_info.has_key('drawingInfo'):
+            render_info["drawingInfo"]['renderer'] = service_info.get('drawingInfo').get('renderer')
 
-        render_file = os.path.join(output_folder, service_name + "_renderer.txt")
-        with open(render_file, 'w') as r_file:
-            json.dump(render_info, r_file)
-            output_msg("Yar! {0} Service renderer stashed in '{1}'".format(service_name, render_file))
+            render_file = os.path.join(output_folder, service_name + "_renderer.txt")
+            with open(render_file, 'w') as r_file:
+                json.dump(render_info, r_file)
+                output_msg("Yar! {0} Service renderer stashed in '{1}'".format(service_name, render_file))
 
-        layer_file = os.path.join(output_folder, service_name + ".lyr")
-        output_msg("Sketchin' yer layer, {}".format(layer_file))
+            layer_file = os.path.join(output_folder, service_name + ".lyr")
+            output_msg("Sketchin' yer layer, {}".format(layer_file))
 
-        layer_temp = arcpy.MakeFeatureLayer_management(layer_source, service_name)
-        arcpy.SaveToLayerFile_management(in_layer=layer_temp, out_layer=layer_file, is_relative_path="RELATIVE")
-        lyr_update = arcpy.mapping.Layer(layer_file)
-        lyr_update.updateLayerFromJSON(render_info)
-        lyr_update.save()
-        output_msg("Stashed yer layer, {}".format(layer_file))
+            layer_temp = arcpy.MakeFeatureLayer_management(layer_source, service_name)
+            arcpy.SaveToLayerFile_management(in_layer=layer_temp, out_layer=layer_file, is_relative_path="RELATIVE")
+            lyr_update = arcpy.mapping.Layer(layer_file)
+            lyr_update.updateLayerFromJSON(render_info)
+            lyr_update.save()
+            output_msg("Stashed yer layer, {}".format(layer_file))
+        else:
+            output_msg("Gaar, no renderer t' sketch from, so no layer file fer ya")    
 
     except Exception, e:
         output_msg(str(e), severity=1)
