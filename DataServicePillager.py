@@ -313,7 +313,7 @@ def combine_data(fc_list, output_fc):
         fastest approach is to use cursor
     """
     if len(fc_list) == 1:
-        arcpy.CopyFeatures_management(fc_list[0], output_fc)
+        arcpy.Copy_management(fc_list[0], output_fc)
         output_msg("Created {0}".format(output_fc))
     else:
         for fc in fc_list:
@@ -323,12 +323,20 @@ def combine_data(fc_list, output_fc):
                 if arcpy.Exists(output_fc):
                     output_msg("Avast! {0} exists, deleting...".format(output_fc), severity=1)
                     arcpy.Delete_management(output_fc)
-                arcpy.CopyFeatures_management(fc, output_fc)  # create dataset to append to
-                ##arcpy.Rename_management(fc, output_fc) # rename the first dataset to the final name
+                
+                arcpy.Copy_management(fc, output_fc)  # create dataset to append to
                 output_msg("Created {0}".format(output_fc))
-                fieldlist = ["SHAPE@"]
-                fields = [field.name for field in arcpy.ListFields(output_fc) if field.name.lower() not in [u'shape']]
-                fieldlist.extend(fields)
+
+                fieldlist = []
+                #fieldlist = ["SHAPE@"]
+                fields = arcpy.ListFields(output_fc)
+                for field in fields:
+                    if field.name.lower() == u'shape':
+                        fieldlist.insert(0, "SHAPE@") # add shape token to start
+                    else:
+                        fieldlist.append(field.name)
+                #fields = [field.name for field in arcpy.ListFields(output_fc) if field.name.lower() not in [u'shape']]
+                #fieldlist.extend(fields)
                 ##arcpy.CopyFeatures_management(output_fc, fc) # duplicate first one so delete later doesn't fail
                 insert_rows = arcpy.da.InsertCursor(output_fc, fieldlist)
             else:
