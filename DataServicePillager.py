@@ -527,6 +527,7 @@ def main():
 
         output_msg("Start the plunder! {0}".format(service_endpoint))
         output_msg("We be stashing the booty in {0}".format(output_workspace))
+        output_msg("Lets 'ave a looksee for layers in yer url...")
 
         service_layers_to_get = get_all_the_layers(service_endpoint, tokenstring)
         output_msg("Blimey, {} layers for the pillagin'".format(len(service_layers_to_get)))
