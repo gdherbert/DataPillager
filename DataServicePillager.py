@@ -41,7 +41,7 @@ except ImportError, e:
 # --------
 # globals
 arcpy.env.overwriteOutput = True
-count_tries = 0
+count_tries = 1
 max_tries = 5
 sleep_time = 2
 # --------
@@ -85,11 +85,11 @@ def test_url(url_to_test):
     """
     try:
         if urllib2.urlopen(url_to_test):
-            output_msg("Ho, a successful url test: {}".format(url_to_test))
+            output_msg("Ho, a successful url test: {0}".format(url_to_test))
             return url_to_test
     except urllib2.HTTPError as e:
         if e.code == 404:
-            output_msg("Arr, 404 error: {}".format(url_to_test))
+            output_msg("Arr, 404 error: {0}".format(url_to_test))
             return None
     except urllib2.URLError as e:
         return None
@@ -154,14 +154,16 @@ def get_token(username, password, referer, adapter_name, client_type='requestip'
         token_response = urllib2.urlopen(token_url, urllib.urlencode(query_dict))
         token_json = json.loads(token_response.read(), strict=False)
     else:
-        token_json = {"error": "unable to get token"}
+        token_json = {"error": "unable to get token. "}
 
     if "token" in token_json:
         token = token_json['token']
         return token
     else:
         output_msg(
-            "Avast! The scurvy gatekeeper says 'Could not generate a token with the username and password provided'.",
+            "Avast! The scurvy gatekeeper says 'Could not generate a token with "  
+            "the username and password provided'! Check yer login details are correct " 
+            "(may be case sensitive).",
             severity=2)
         if "error" in token_json:
             output_msg(token_json["error"], severity=2)
@@ -193,7 +195,7 @@ def get_all_the_layers(service_endpoint, tokenstring):
         catalog_folder = service_layer_info.get('folders')
         folder_list = [f for f in catalog_folder if f.lower() not in 'utilities']
         for folder_name in folder_list:
-            output_msg("Ahoy, I be searching {} for hidden treasure...".format(folder_name), severity=0)
+            output_msg("Ahoy, I be searching {0} for hidden treasure...".format(folder_name), severity=0)
             lyr_list = get_all_the_layers(service_endpoint + '/' + folder_name, tokenstring)
             if lyr_list:
                 service_layers_to_walk.extend(lyr_list)
@@ -295,14 +297,15 @@ def get_data(query):
         if hasattr(e, 'errno') and e.errno == 10054:
                 #connection forcible closed, extra sleep pause
                 time.sleep(sleep_time)
-        time.sleep(sleep_time)
+
         count_tries += 1
         if count_tries > max_tries:
-            count_tries = 0
-            output_msg("Avast! Error: ACCESS_FAILED")
+            count_tries = 1
+            output_msg("Avast! Error: ACCESS_FAILED", severity=1)
             return None
         else:
-            output_msg("Hold fast, attempt {0} of {1}".format(count_tries, max_tries))
+            output_msg("Hold fast, attempt {0} of {1} in {2} seconds".format(count_tries, max_tries, sleep_time))
+            time.sleep(sleep_time)
             return get_data(query=query)
 
 
@@ -378,14 +381,14 @@ def create_layer_file(service_info, service_name, layer_source, output_folder):
                 output_msg("Yar! {0} Service renderer stashed in '{1}'".format(service_name, render_file))
 
             layer_file = os.path.join(output_folder, service_name + ".lyr")
-            output_msg("Sketchin' yer layer, {}".format(layer_file))
+            output_msg("Sketchin' yer layer, {0}".format(layer_file))
 
             layer_temp = arcpy.MakeFeatureLayer_management(layer_source, service_name)
             arcpy.SaveToLayerFile_management(in_layer=layer_temp, out_layer=layer_file, is_relative_path="RELATIVE")
             lyr_update = arcpy.mapping.Layer(layer_file)
             lyr_update.updateLayerFromJSON(render_info)
             lyr_update.save()
-            output_msg("Stashed yer layer, {}".format(layer_file))
+            output_msg("Stashed yer layer, {0}".format(layer_file))
         else:
             output_msg("Gaar, no renderer t' sketch from, so no layer file fer ya")    
 
@@ -525,12 +528,12 @@ def main():
         if len(token) > 0:
             tokenstring = '&token=' + token
 
-        output_msg("Start the plunder! {0}".format(service_endpoint))
+        output_msg("Start the plunder of {0}!".format(service_endpoint))
         output_msg("We be stashing the booty in {0}".format(output_workspace))
         output_msg("Lets 'ave a looksee for layers in yer url...")
 
         service_layers_to_get = get_all_the_layers(service_endpoint, tokenstring)
-        output_msg("Blimey, {} layers for the pillagin'".format(len(service_layers_to_get)))
+        output_msg("Blimey, {0} layers for the pillagin'".format(len(service_layers_to_get)))
         for slyr in service_layers_to_get:
             count_tries = 0
             downloaded_fc_list = [] # for file merging.
@@ -618,7 +621,7 @@ def main():
                         if feature_OID_query and 'objectIds' in feature_OID_query:
                             feature_OIDs = feature_OID_query["objectIds"]
                         else:
-                            output_msg("Blast, no OID values: {}".format(feature_OID_query))
+                            output_msg("Blast, no OID values: {0}".format(feature_OID_query))
 
                         if feature_OIDs:
                             OID_count = len(feature_OIDs)
