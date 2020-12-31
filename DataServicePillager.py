@@ -216,7 +216,7 @@ def get_all_the_layers(service_endpoint, tokenstring):
 
     for url in service_layers_to_walk:
         # go get the json and information and walk down until you get all the service urls
-        service_call = json.load(urllib2.urlopen(url + '?f=json' + tokenstring))
+        service_call = json.load(urllib.request.urlopen(url + '?f=json' + tokenstring))
 
         # for getting all the layers, start with a list of sublayers
         service_layers = None
@@ -272,7 +272,7 @@ def get_data(query):
     global sleep_time
 
     try:
-        response = urllib2.urlopen(query).read()  #get a byte str by default
+        response = urllib.request.urlopen(query).read()  #get a byte str by default
         if response:
             try:
                 response = response.decode('utf-8')  # convert to unicode
@@ -508,9 +508,9 @@ def main():
                 token_client_type = 'referer'
 
         # build a generic opener with the use agent spoofed
-        opener = urllib2.build_opener()
+        opener = urllib.request.build_opener()
         opener.addheaders = [('User-agent', 'Mozilla/5.0')]
-        urllib2.install_opener(opener)
+        urllib.request.install_opener(opener)
 
         token = ''
         if username and not existing_token:
@@ -538,7 +538,7 @@ def main():
             final_fc = ''
 
             output_msg("Now pillagin' yer data from {0}".format(slyr))
-            service_info_call = urllib2.urlopen(slyr + '?f=json' + tokenstring).read()
+            service_info_call = urllib.request.urlopen(slyr + '?f=json' + tokenstring).read()
             if service_info_call:
                 service_info = json.loads(service_info_call, strict=False)
             else:
@@ -575,9 +575,9 @@ def main():
 
                 # get count
                 if query_str == '':
-                    feature_count_call = urllib2.urlopen(slyr + '/query?where=1%3D1&returnCountOnly=true&f=pjson' + tokenstring).read()
+                    feature_count_call = urllib.request.urlopen(slyr + '/query?where=1%3D1&returnCountOnly=true&f=pjson' + tokenstring).read()
                 else:
-                    feature_count_call = urllib2.urlopen(slyr + '/query?where=' + query_str + '&returnCountOnly=true&f=pjson' + tokenstring).read()
+                    feature_count_call = urllib.request.urlopen(slyr + '/query?where=' + query_str + '&returnCountOnly=true&f=pjson' + tokenstring).read()
 
                 if feature_count_call:
                     feature_count = json.loads(feature_count_call)
@@ -611,11 +611,11 @@ def main():
 
                         # extract using actual OID values is the safest way
                         feature_OIDs = None
-                        feature_OID_query = json.loads(urllib2.urlopen(slyr + feat_OIDLIST_query).read())
+                        feature_OID_query = json.loads(urllib.request.urlopen(slyr + feat_OIDLIST_query).read())
                         if feature_OID_query and 'objectIds' in feature_OID_query:
                             feature_OIDs = feature_OID_query["objectIds"]
                         else:
-                            output_msg("Blast, no OID values: {0}".format(feature_OID_query))
+                            output_msg("Blast, no OID values: {}".format(feature_OID_query))
 
                         if feature_OIDs:
                             OID_count = len(feature_OIDs)
