@@ -353,7 +353,7 @@ def grouper(iterable, n, fillvalue=None):
         :param fillvalue: value to fill with if chunk smaller than n
     """
     args = [iter(iterable)] * n
-    return itertools.izip_longest(*args, fillvalue=fillvalue)
+    return itertools.zip_longest(*args, fillvalue=fillvalue)
 
 
 def create_layer_file(service_info, service_name, layer_source, output_folder):
