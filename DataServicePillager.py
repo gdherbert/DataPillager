@@ -81,14 +81,14 @@ def test_url(url_to_test):
     :param token_url: String
     """
     try:
-        if urllib2.urlopen(url_to_test):
-            output_msg("Ho, a successful url test: {0}".format(url_to_test))
+        if urllib.request.urlopen(url_to_test):
+            output_msg("Ho, a successful url test: {}".format(url_to_test))
             return url_to_test
-    except urllib2.HTTPError as e:
+    except urllib.request.HTTPError as e:
         if e.code == 404:
-            output_msg("Arr, 404 error: {0}".format(url_to_test))
+            output_msg("Arr, 404 error: {}".format(url_to_test))
             return None
-    except urllib2.URLError as e:
+    except urllib.request.URLError as e:
         return None
 
 
