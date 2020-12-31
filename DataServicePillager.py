@@ -286,21 +286,20 @@ def get_data(query):
         else:
             return {'error': 'no response received'}
 
-    except Exception, e:
+    except Exception as e:
         output_msg(str(e), severity=1)
         # sleep and try again
         if hasattr(e, 'errno') and e.errno == 10054:
                 #connection forcible closed, extra sleep pause
                 time.sleep(sleep_time)
-
+        time.sleep(sleep_time)
         count_tries += 1
         if count_tries > max_tries:
-            count_tries = 1
-            output_msg("Avast! Error: ACCESS_FAILED", severity=1)
+            count_tries = 0
+            output_msg("Avast! Error: ACCESS_FAILED")
             return None
         else:
-            output_msg("Hold fast, attempt {0} of {1} in {2} seconds".format(count_tries, max_tries, sleep_time))
-            time.sleep(sleep_time)
+            output_msg("Hold fast, attempt {0} of {1}".format(count_tries, max_tries))
             return get_data(query=query)
 
 
