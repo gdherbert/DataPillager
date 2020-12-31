@@ -172,7 +172,7 @@ def get_all_the_layers(service_endpoint, tokenstring):
     :param service_endpoint starting url
     :param tokenstring string containing token for authentication
     """
-    service_call = urllib2.urlopen(service_endpoint + '?f=json' + tokenstring).read()
+    service_call = urllib.request.urlopen(service_endpoint + '?f=json' + tokenstring).read()
     if service_call:
         service_layer_info = json.loads(service_call, strict=False)
         if service_layer_info.get('error'):
