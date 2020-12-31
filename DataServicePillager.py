@@ -190,7 +190,7 @@ def get_all_the_layers(service_endpoint, tokenstring):
         catalog_folder = service_layer_info.get('folders')
         folder_list = [f for f in catalog_folder if f.lower() not in 'utilities']
         for folder_name in folder_list:
-            output_msg("Ahoy, I be searching {0} for hidden treasure...".format(folder_name), severity=0)
+            output_msg("Ahoy, I be searching {} for hidden treasure...".format(folder_name), severity=0)
             lyr_list = get_all_the_layers(service_endpoint + '/' + folder_name, tokenstring)
             if lyr_list:
                 service_layers_to_walk.extend(lyr_list)
@@ -523,12 +523,11 @@ def main():
         if len(token) > 0:
             tokenstring = '&token=' + token
 
-        output_msg("Start the plunder of {0}!".format(service_endpoint))
+        output_msg("Start the plunder! {0}".format(service_endpoint))
         output_msg("We be stashing the booty in {0}".format(output_workspace))
-        output_msg("Lets 'ave a looksee for layers in yer url...")
 
         service_layers_to_get = get_all_the_layers(service_endpoint, tokenstring)
-        output_msg("Blimey, {0} layers for the pillagin'".format(len(service_layers_to_get)))
+        output_msg("Blimey, {} layers for the pillagin'".format(len(service_layers_to_get)))
         for slyr in service_layers_to_get:
             count_tries = 0
             downloaded_fc_list = [] # for file merging.
