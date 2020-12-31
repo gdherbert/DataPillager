@@ -96,7 +96,7 @@ def get_adapter_name(url_string):
     """extract web adaptor name from endpoint
     :param url_string: url of service
     """
-    u = urlparse(url_string)
+    u = urllib.parse.urlparse(url_string)
     if u.netloc.find('arcgis.com') > -1:
         # is an esri domain
         refer = r"https://www.arcgis.com"
