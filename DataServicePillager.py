@@ -110,16 +110,16 @@ def get_referring_domain(url_string):
     """get referring domain part of url
     :param url_string url of service
     """
-    u = urlparse(url_string)
+    u = urllib.parse.urlparse(url_string)
     if u.netloc.find('arcgis.com') > -1:
         # is an esri domain
         ref_domain = r"https://www.arcgis.com"
     else:
         # generate from service url and hope it works
         if u.scheme == 'http':
-            ref_domain = urlunsplit(['https', u.netloc, '', '', ''])
+            ref_domain = urllib.parse.urlunsplit(['https', u.netloc, '', '', ''])
         else:
-            ref_domain = urlunsplit([u.scheme, u.netloc, '', '', ''])
+            ref_domain = urllib.parse.urlunsplit([u.scheme, u.netloc, '', '', ''])
     return ref_domain
 
 
