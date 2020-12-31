@@ -24,18 +24,15 @@ try:
     import sys
     import arcpy
     import urllib
-    import urllib2
     import json
     import os
     import codecs
     import datetime
     import time
-    from urlparse import urlparse
-    from urlparse import urlunsplit
     import itertools
     import re
-except ImportError, e:
-    print e
+except ImportError as e:
+    print(e)
     sys.exit()
 
 # --------
