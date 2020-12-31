@@ -700,15 +700,15 @@ def main():
                         #combine all the data
                         combine_data(fc_list=downloaded_fc_list, output_fc=final_fc)
 
-                        create_layer_file(service_info=service_info, service_name=service_name_cl, layer_source=final_fc, output_folder=output_folder)
+                        #create_layer_file(service_info=service_info, service_name=service_name_cl, layer_source=final_fc, output_folder=output_folder)
 
                         elapsed_time = datetime.datetime.today() - start_time
                         output_msg("{0} plundered in {1}".format(final_fc, str(elapsed_time)))
 
-                    except ValueError, e:
+                    except ValueError as e:
                         output_msg(str(e), severity=2)
 
-                    except Exception, e:
+                    except Exception as e:
                         line, err = trace()
                         output_msg("Script Error\n{0}\n on {1}".format(err, line), severity=2)
                         output_msg(arcpy.GetMessages())
@@ -729,10 +729,10 @@ def main():
                 # service info error
                 output_msg("Error: {0}".format(service_info.get('error')), severity=2)
 
-    except ValueError, e:
+    except ValueError as e:
         output_msg("ERROR: " + str(e), severity=2)
 
-    except Exception, e:
+    except Exception as e:
         if hasattr(e, 'errno') and e.errno == 10054:
             output_msg("ERROR: " + str(e), severity=2)
         else:
