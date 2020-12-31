@@ -60,7 +60,7 @@ def output_msg(msg, severity=0):
         :param msg: text to output
         :param severity: 0 = none, 1 = warning, 2 = error
     """
-    print msg
+    print(msg)
     # Split the message on \n first, so that if it's multiple lines,
     #  a GPMessage will be added for each line
     try:
