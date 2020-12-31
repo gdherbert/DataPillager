@@ -148,19 +148,17 @@ def get_token(username, password, referer, adapter_name, client_type='requestip'
             token_url = url2test
             break
     if token_url:
-        token_response = urllib2.urlopen(token_url, urllib.urlencode(query_dict))
+        token_response = urllib.request.urlopen(token_url, urllib.urlencode(query_dict))
         token_json = json.loads(token_response.read(), strict=False)
     else:
-        token_json = {"error": "unable to get token. "}
+        token_json = {"error": "unable to get token"}
 
     if "token" in token_json:
         token = token_json['token']
         return token
     else:
         output_msg(
-            "Avast! The scurvy gatekeeper says 'Could not generate a token with "  
-            "the username and password provided'! Check yer login details are correct " 
-            "(may be case sensitive).",
+            "Avast! The scurvy gatekeeper says 'Could not generate a token with the username and password provided'. Check yer login details are shipshape!",
             severity=2)
         if "error" in token_json:
             output_msg(token_json["error"], severity=2)
