@@ -366,27 +366,43 @@ def create_layer_file(service_info, service_name, layer_source, output_folder):
     """
     try:
         render_info = {"drawingInfo": {"renderer": {}}}
-        if service_info.has_key('drawingInfo'):
+        if 'drawingInfo' in service_info:
             render_info["drawingInfo"]['renderer'] = service_info.get('drawingInfo').get('renderer')
-
             render_file = os.path.join(output_folder, service_name + "_renderer.txt")
             with open(render_file, 'w') as r_file:
                 json.dump(render_info, r_file)
                 output_msg("Yar! {0} Service renderer stashed in '{1}'".format(service_name, render_file))
 
-            layer_file = os.path.join(output_folder, service_name + ".lyr")
-            output_msg("Sketchin' yer layer, {0}".format(layer_file))
+            layer_file_name = os.path.join(output_folder, service_name + ".lyrx")
+            output_msg("Sketchin' yer layer, {}".format(layer_file_name))
 
             layer_temp = arcpy.MakeFeatureLayer_management(layer_source, service_name)
-            arcpy.SaveToLayerFile_management(in_layer=layer_temp, out_layer=layer_file, is_relative_path="RELATIVE")
-            lyr_update = arcpy.mapping.Layer(layer_file)
-            lyr_update.updateLayerFromJSON(render_info)
-            lyr_update.save()
-            output_msg("Stashed yer layer, {0}".format(layer_file))
+            arcpy.SaveToLayerFile_management(in_layer=layer_temp, out_layer=layer_file_name, is_relative_path="RELATIVE")
+            lyr_file = arcpy.mp.LayerFile(layer_file_name)
+
+            lyr_update = lyr_file.listLayers()[0]  # is a Layer type
+            
+            lyr_cim = lyr_update.getDefinition('V2')  #get CIM definition
+            symbCIM1 = lyr_cim.renderer.symbol.symbol.symbolLayers #may be 2 - outline and fill depends on type
+            num_symbol = len(symbCIM1)
+            ## super complicated - may have color, may not, its a right mess
+            if num_symbol == 2: #polygon?
+                symb_out = symbCIM1[0]
+                symb_fill = symbCIM1[1]
+                symb_fill.color.values = render_info["renderer"]["symbol"]["color"]
+                if "outline" in render_info["renderer"]["symbol"]:
+                    symb_out.color.values = render_info["renderer"]["symbol"]["outline"]["color"]
+                    symb_out.width = render_info["renderer"]["symbol"]["outline"]["width"]  #only if polygon
+            else:
+                symbCIM1[0].size = render_info["renderer"]["symbol"]["size"]
+            lyr_cim.setDefinition(symbCIM1)
+
+            lyr_file.save()
+            output_msg("Stashed yer layer, {}".format(layer_file_name))
         else:
             output_msg("Gaar, no renderer t' sketch from, so no layer file fer ya")    
 
-    except Exception, e:
+    except Exception as e:
         output_msg(str(e), severity=1)
         output_msg("Failed yer layer file drawin'")
 
