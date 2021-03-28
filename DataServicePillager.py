@@ -364,6 +364,7 @@ def create_layer_file(service_info, service_name, layer_source, output_folder):
     :param layer_source: String path to file
     :param output_folder: String path
     """
+    #TODO duplicate this functionality for Pro
     try:
         render_info = {"drawingInfo": {"renderer": {}}}
         if 'drawingInfo' in service_info:
