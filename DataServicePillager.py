@@ -24,6 +24,8 @@ try:
     import sys
     import arcpy
     import urllib
+    import urllib.request
+    import urllib.parse
     import json
     import os
     import codecs
@@ -500,7 +502,7 @@ def main():
            sleep_time = int(sleep_time)
 
         if query_str:
-            query_str = urllib.quote(query_str)
+            query_str = urllib.parse.quote(query_str)
 
         if output_workspace == '':
             output_workspace = os.getcwd()
