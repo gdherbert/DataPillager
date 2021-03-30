@@ -1,8 +1,6 @@
 # DataPillager
 ![Logo](DataPillagerIcon.png)
 
-![GitHub all releases](https://img.shields.io/github/downloads/gdherbert/DataPillager/total)
-
 Most GIS people have had a need to download vector data at some point. What do you do if there isn't a handy package to download, but you have access to a REST service containing the data?
 
 ## Enter the DataPillager. ##
