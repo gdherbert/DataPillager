@@ -334,9 +334,7 @@ def combine_data(fc_list, output_fc):
                         fieldlist.insert(0, "SHAPE@") # add shape token to start
                     else:
                         fieldlist.append(field.name)
-                #fields = [field.name for field in arcpy.ListFields(output_fc) if field.name.lower() not in [u'shape']]
-                #fieldlist.extend(fields)
-                ##arcpy.CopyFeatures_management(output_fc, fc) # duplicate first one so delete later doesn't fail
+                
                 insert_rows = arcpy.da.InsertCursor(output_fc, fieldlist)
             else:
                 search_rows = arcpy.da.SearchCursor(fc, fieldlist) # append to first dataset
