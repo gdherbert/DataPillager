@@ -310,11 +310,19 @@ def combine_data(fc_list, output_fc):
         :param output_fc: path to output dataset
         Combine the downloaded datafiles into one
         fastest approach is to use cursor
+        Will drop spatial index on the destination for larger inputs to try and speed up insert
     """
-    if len(fc_list) == 1:
+    count_fc = len(fc_list)
+    drop_spatial = false # whether to drop the spatial index before loading
+    if count_fc > 50: # larger inputs
+        drop_spatial = true
+
+    if count_fc == 1:
+        #simple case
         arcpy.Copy_management(fc_list[0], output_fc)
         output_msg("Created {0}".format(output_fc))
     else:
+
         for fc in fc_list:
             if fc_list.index(fc) == 0:
                 # append to first dataset. much faster
@@ -325,6 +333,10 @@ def combine_data(fc_list, output_fc):
                 
                 arcpy.Copy_management(fc, output_fc)  # create dataset to append to
                 output_msg("Created {0}".format(output_fc))
+                if drop_spatial:
+                    # delete the spatial index for better loading
+                    output_msg("Dropping spatial index for loading performance")
+                    arcpy.management.RemoveSpatialIndex(output_fc)
 
                 fieldlist = []
                 #fieldlist = ["SHAPE@"]
@@ -342,6 +354,11 @@ def combine_data(fc_list, output_fc):
                     insert_rows.insertRow(row)
                 del row, search_rows
                 output_msg("Appended {0}...".format(fc))
+        
+        if drop_spatial:
+            # recreate the spatial index
+            output_msg("Adding spatial index")
+            arcpy.management.AddSpatialIndex(output_fc)
         del insert_rows
 
 
