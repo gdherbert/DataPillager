@@ -482,6 +482,7 @@ def main():
     global sleep_time
     global service_output_name_tracking_list
     global output_type
+    global workspace_type
     
     start_time = datetime.datetime.today()
 
