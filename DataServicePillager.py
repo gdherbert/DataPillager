@@ -313,9 +313,8 @@ def combine_data(fc_list, output_fc):
         Will drop spatial index on the destination for larger inputs to try and speed up insert
     """
     count_fc = len(fc_list)
-    drop_spatial = false # whether to drop the spatial index before loading
-    if count_fc > 50: # larger inputs
-        drop_spatial = true
+    drop_spatial = False # whether to drop the spatial index before loading
+        drop_spatial = True
 
     if count_fc == 1:
         #simple case
