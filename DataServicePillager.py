@@ -312,8 +312,10 @@ def combine_data(fc_list, output_fc):
         fastest approach is to use cursor
         Will drop spatial index on the destination for larger inputs to try and speed up insert
     """
+    global workspace_type
     count_fc = len(fc_list)
     drop_spatial = False # whether to drop the spatial index before loading
+    if count_fc > 50: # and not workspace_type.startswith('esriDataSourcesGDB.SdeWorkspaceFactory'): # larger inputs and not if SDE
         drop_spatial = True
 
     if count_fc == 1:
