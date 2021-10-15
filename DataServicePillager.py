@@ -525,7 +525,7 @@ def main():
         output_desc = arcpy.Describe(output_workspace)
         output_type = output_desc.dataType
         workspace_type = None
-        if hasattr('wrkspaceFactoryProgID'):
+        if hasattr(output_desc, 'wrkspaceFactoryProgID'):
             workspace_type = output_desc.workspaceFactoryProgID
 
         if output_type == "Folder": # To Folder
