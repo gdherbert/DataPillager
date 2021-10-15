@@ -33,6 +33,7 @@ try:
     import time
     import itertools
     import re
+    import ssl
 except ImportError as e:
     print(e)
     sys.exit()
@@ -43,6 +44,9 @@ arcpy.env.overwriteOutput = True
 count_tries = 1
 max_tries = 5
 sleep_time = 2
+ssl_context = ssl._create_unverified_context()  # hacky workaround for SSL Cert issue - don't bother verifying SSL certs
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
 # --------
 
 def trace():
@@ -546,7 +550,7 @@ def main():
                 token_client_type = 'referer'
 
         # build a generic opener with the use agent spoofed
-        opener = urllib.request.build_opener()
+        opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl_context))
         opener.addheaders = [('User-agent', 'Mozilla/5.0')]
         urllib.request.install_opener(opener)
 
