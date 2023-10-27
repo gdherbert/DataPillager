@@ -154,7 +154,7 @@ def get_token(username, password, referer, adapter_name, client_type='requestip'
             token_url = url2test
             break
     if token_url:
-        token_response = urllib.request.urlopen(token_url, urllib.urlencode(query_dict))
+        token_response = urllib.request.urlopen(token_url, urllib.parse.urlencode(query_dict).encode('utf-8'))
         token_json = json.loads(token_response.read(), strict=False)
     else:
         token_json = {"error": "unable to get token"}
