@@ -222,7 +222,6 @@ def get_all_the_layers(service_endpoint, tokenstring):
 
     for url in service_layers_to_walk:
         # go get the json and information and walk down until you get all the service urls
-        url = url.replace(" ", "%20")
         service_call = json.load(urllib.request.urlopen(url + '?f=json' + tokenstring))
 
         # for getting all the layers, start with a list of sublayers
