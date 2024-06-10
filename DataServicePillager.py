@@ -214,7 +214,7 @@ def get_all_the_layers(service_endpoint, tokenstring):
                     if service_endpoint.endswith(folder):
                         service_url = service_endpoint + '/' + sname + '/' + servicetype
                 
-                service_layers_to_walk.append(service_url)
+                service_layers_to_walk.append(urllib.parse.quote(service_url, safe='/:?=&'))
 
     if len(service_layers_to_walk) == 0:
         # no services or folders
@@ -625,6 +625,15 @@ def main():
 
                 info_filename = service_name_cl + "_info.txt"
                 info_file = os.path.join(output_folder, info_filename)
+                
+                if output_type == "Folder":
+                    final_fc = os.path.join(output_workspace, service_name_cl + ".shp")
+                else:
+                    final_fc = os.path.join(output_workspace, service_name_cl)
+                
+                if arcpy.Exists(final_fc):
+                    output_msg("Skipping download, final output already exists: '{0}'".format(final_fc))
+                    continue  # Skip to the next layer if the final output exists 
 
                 # write out the service info for reference
                 with open(info_file, 'w') as i_file:
@@ -728,11 +737,6 @@ def main():
                             raise ValueError("Aaar, plunderin' failed, feature OIDs is None")
 
                         # download complete, create a final output
-                        if output_type == "Folder":
-                            final_fc = os.path.join(output_workspace, service_name_cl + ".shp")
-                        else:
-                            final_fc = os.path.join(output_workspace, service_name_cl)
-
                         output_msg("Stashin' all the booty in '{0}'".format(final_fc))
 
                         #combine all the data
