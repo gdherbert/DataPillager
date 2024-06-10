@@ -3,7 +3,7 @@
 # Purpose:     Extract data from an ArcGIS Service, in chunks defined by
 #              the service Max Record Count to get around that limitation.
 #              Requires that JSON is supported by the service
-#
+
 # Author:      Grant Herbert
 #
 # Created:     12/11/2014
@@ -316,10 +316,10 @@ def combine_data(fc_list, output_fc):
         fastest approach is to use cursor
         Will drop spatial index on the destination for larger inputs to try and speed up insert
     """
-    global workspace_type
     count_fc = len(fc_list)
     drop_spatial = False # whether to drop the spatial index before loading
-    if count_fc > 50: # and not workspace_type.startswith('esriDataSourcesGDB.SdeWorkspaceFactory'): # larger inputs and not if SDE
+    is_spatial = arcpy.Describe(fc_list[0]).dataType
+    if count_fc > 50 and is_spatial == 'FeatureClass': # larger inputs
         drop_spatial = True
 
     if count_fc == 1:
@@ -487,7 +487,6 @@ def main():
     global sleep_time
     global service_output_name_tracking_list
     global output_type
-    global workspace_type
     
     start_time = datetime.datetime.today()
 
@@ -530,9 +529,6 @@ def main():
 
         output_desc = arcpy.Describe(output_workspace)
         output_type = output_desc.dataType
-        workspace_type = None
-        if hasattr(output_desc, 'wrkspaceFactoryProgID'):
-            workspace_type = output_desc.workspaceFactoryProgID
 
         if output_type == "Folder": # To Folder
             output_folder = output_workspace
