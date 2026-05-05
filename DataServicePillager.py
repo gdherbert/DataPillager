@@ -23,9 +23,9 @@ OF THIS SOFTWARE ASSUME NO LIABILITY FROM IMPROPER USE OR OPERATION.
 try:
     import sys
     import arcpy
-    import urllib
-    import urllib.request
-    import urllib.parse
+    import requests
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.retry import Retry
     import json
     import os
     import codecs
@@ -33,7 +33,6 @@ try:
     import time
     import itertools
     import re
-    import ssl
 except ImportError as e:
     print(e)
     sys.exit()
@@ -44,9 +43,6 @@ arcpy.env.overwriteOutput = True
 count_tries = 1
 max_tries = 5
 sleep_time = 2
-ssl_context = ssl._create_unverified_context()  # hacky workaround for SSL Cert issue - don't bother verifying SSL certs
-ssl_context.check_hostname = False
-ssl_context.verify_mode = ssl.CERT_NONE
 # --------
 
 def trace():
@@ -87,15 +83,13 @@ def test_url(url_to_test):
     :param token_url: String
     """
     try:
-        if urllib.request.urlopen(url_to_test):
+        response = requests.get(url_to_test, timeout=10)  # Add timeout for reliability
+        if response.status_code == 200:
             output_msg("Ho, a successful url test: {}".format(url_to_test))
             return url_to_test
-    except urllib.request.HTTPError as e:
-        if e.code == 404:
-            output_msg("Arr, 404 error: {}".format(url_to_test))
-            return None
-    except urllib.request.URLError as e:
-        return None
+    except requests.RequestException:
+        pass
+    return None
 
 
 def get_adapter_name(url_string):
@@ -129,7 +123,7 @@ def get_referring_domain(url_string):
     return ref_domain
 
 
-def get_token(username, password, referer, adapter_name, client_type='requestip', expiration=240):
+def get_token(username, password, referer, adapter_name, client_type='requestip', expiration=240, session=None):
     """ Get Esri access token. Uses requestip by default
         :param username: valid username
         :param password: valid password
@@ -137,6 +131,7 @@ def get_token(username, password, referer, adapter_name, client_type='requestip'
         :param adapter_name: name of the arcgis server adapter
         :param client_type: whether to use referer value over requestip (default False uses requestip)
         :param expiration: optional validity time in minutes (default 240)
+        :param session: requests.Session for consistency
     """
     query_dict = {'username': username,
                   'password': password,
@@ -154,8 +149,11 @@ def get_token(username, password, referer, adapter_name, client_type='requestip'
             token_url = url2test
             break
     if token_url:
-        token_response = urllib.request.urlopen(token_url, urllib.urlencode(query_dict))
-        token_json = json.loads(token_response.read(), strict=False)
+        if session:
+            response = session.post(token_url, data=query_dict)
+        else:
+            response = requests.post(token_url, data=query_dict)
+        token_json = response.json()
     else:
         token_json = {"error": "unable to get token"}
 
@@ -173,16 +171,20 @@ def get_token(username, password, referer, adapter_name, client_type='requestip'
         raise ValueError("Token Error")
 
 
-def get_all_the_layers(service_endpoint, tokenstring):
+def get_all_the_layers(service_endpoint, tokenstring, session=None):
     """walk the endpoint and extract feature layer or map layer urls
     :param service_endpoint starting url
     :param tokenstring string containing token for authentication
+    :param session: requests.Session
     """
-    service_call = urllib.request.urlopen(service_endpoint + '?f=json' + tokenstring).read()
-    if service_call:
-        service_layer_info = json.loads(service_call, strict=False)
-        if service_layer_info.get('error'):
-            raise Exception("Gaaar, 'service_call' failed to access {0}".format(service_endpoint))
+    if session:
+        response = session.get(service_endpoint + '?f=json' + tokenstring)
+        service_layer_info = response.json()
+    else:
+        response = requests.get(service_endpoint + '?f=json' + tokenstring)
+        service_layer_info = response.json()
+    if service_layer_info.get('error'):
+        raise Exception("Gaaar, 'service_call' failed to access {0}".format(service_endpoint))
     else:
         raise Exception("Gaaar, 'service_call' failed to access {0}".format(service_endpoint))
 
@@ -197,7 +199,7 @@ def get_all_the_layers(service_endpoint, tokenstring):
         folder_list = [f for f in catalog_folder if f.lower() not in 'utilities']
         for folder_name in folder_list:
             output_msg("Ahoy, I be searching {} for hidden treasure...".format(folder_name), severity=0)
-            lyr_list = get_all_the_layers(service_endpoint + '/' + folder_name, tokenstring)
+            lyr_list = get_all_the_layers(service_endpoint + '/' + folder_name, tokenstring, session=session)
             if lyr_list:
                 service_layers_to_walk.extend(lyr_list)
 
@@ -222,7 +224,12 @@ def get_all_the_layers(service_endpoint, tokenstring):
 
     for url in service_layers_to_walk:
         # go get the json and information and walk down until you get all the service urls
-        service_call = json.load(urllib.request.urlopen(url + '?f=json' + tokenstring))
+        if session:
+            response = session.get(url + '?f=json' + tokenstring)
+            service_call = response.json()
+        else:
+            response = requests.get(url + '?f=json' + tokenstring)
+            service_call = response.json()
 
         # for getting all the layers, start with a list of sublayers
         service_layers = None
@@ -242,7 +249,7 @@ def get_all_the_layers(service_endpoint, tokenstring):
                     lyr_id = str(lyr.get('id'))
                     if service_layer_type == 'layers':
                         sub_layer_url = url + '/' + lyr_id
-                        lyr_list = get_all_the_layers(sub_layer_url, tokenstring)
+                        lyr_list = get_all_the_layers(sub_layer_url, tokenstring, session=session)
                         if lyr_list:
                             service_layers_to_walk.extend(lyr_list)
                         # add the full url
@@ -252,7 +259,7 @@ def get_all_the_layers(service_endpoint, tokenstring):
                         # handled differently, drop the parent layer id and use sublayer id
                         sub_endpoint = url.rsplit('/', 1)[0]
                         sub_layer_url = sub_endpoint + '/' + lyr_id
-                        lyr_list = get_all_the_layers(sub_layer_url, tokenstring)
+                        lyr_list = get_all_the_layers(sub_layer_url, tokenstring, session=session)
                         if lyr_list:
                             service_layers_to_walk.extend(lyr_list)
                         else:
@@ -267,46 +274,25 @@ def get_all_the_layers(service_endpoint, tokenstring):
     return service_layers_to_get
 
 
-def get_data(query):
+def get_data(query, session=None):
     """ :param query: url query string
+        :param session: requests.Session
         Download the data.
         Return a JSON object
-        Automatically retries up to max_tries times.
     """
-    global count_tries
-    global max_tries
-    global sleep_time
-
     try:
-        response = urllib.request.urlopen(query).read()  #get a byte str by default
-        if response:
-            try:
-                response = response.decode('utf-8')  # convert to unicode
-            except UnicodeDecodeError:
-                response = response.decode('unicode-escape')  # convert to unicode
-            # load to json and check for error
-            resp_json = json.loads(response)
-            if resp_json.get('error'):
-                output_msg(resp_json['error'])
-            return resp_json
+        if session:
+            response = session.get(query)
         else:
-            return {'error': 'no response received'}
-
-    except Exception as e:
+            response = requests.get(query)
+        response.raise_for_status()  # Raise for bad status codes
+        resp_json = response.json()
+        if resp_json.get('error'):
+            output_msg(resp_json['error'])
+        return resp_json
+    except requests.RequestException as e:
         output_msg(str(e), severity=1)
-        # sleep and try again
-        if hasattr(e, 'errno') and e.errno == 10054:
-                #connection forcible closed, extra sleep pause
-                time.sleep(sleep_time)
-        time.sleep(sleep_time)
-        count_tries += 1
-        if count_tries > max_tries:
-            count_tries = 0
-            output_msg("Avast! Error: ACCESS_FAILED")
-            return None
-        else:
-            output_msg("Hold fast, attempt {0} of {1}".format(count_tries, max_tries))
-            return get_data(query=query)
+        return {'error': str(e)}
 
 
 def combine_data(fc_list, output_fc):
@@ -493,16 +479,24 @@ def main():
 
     try:
         # arcgis toolbox parameters
-        service_endpoint = arcpy.GetParameterAsText(0) # String - URL of Service endpoint required
-        output_workspace = arcpy.GetParameterAsText(1) # String - gdb/folder to put the results required
-        max_tries = arcpy.GetParameter(2) # Int - max number of retries allowed required
-        sleep_time = arcpy.GetParameter(3) # Int - max number of retries allowed required`
-        strict_mode = arcpy.GetParameter(4) # Bool - JSON check True/False required
-        username = arcpy.GetParameterAsText(5) # String - username optional
-        password = arcpy.GetParameterAsText(6) # String - password optional
-        referring_domain = arcpy.GetParameterAsText(7) # String - url of auth domain
-        existing_token = arcpy.GetParameterAsText(8) # String - valid token value
-        query_str = arcpy.GetParameterAsText(9) # String - valid SQL query string
+        service_endpoint = 'https://services.arcgis.com/RmCCgQtiZLDCtblq/arcgis/rest/services/eGIS_Addressing_ADDRESS_POINTSv2/FeatureServer/0'
+        output_workspace = r'X:\0_FLO_Projects\F3232.01 Crescenta Valley WD\Projects\LA_County_Data_automation\Data_Processing.gdb'
+        strict_mode = False
+        query_str = ''
+        referring_domain = ''
+        existing_token = None
+        username = None
+        password = None
+        #service_endpoint = arcpy.GetParameterAsText(0) # String - URL of Service endpoint required
+        #output_workspace = arcpy.GetParameterAsText(1) # String - gdb/folder to put the results required
+        #max_tries = arcpy.GetParameter(2) # Int - max number of retries allowed required
+        #sleep_time = arcpy.GetParameter(3) # Int - max number of retries allowed required`
+        #strict_mode = arcpy.GetParameter(4) # Bool - JSON check True/False required
+        #username = arcpy.GetParameterAsText(5) # String - username optional
+        #password = arcpy.GetParameterAsText(6) # String - password optional
+        #referring_domain = arcpy.GetParameterAsText(7) # String - url of auth domain
+        #existing_token = arcpy.GetParameterAsText(8) # String - valid token value
+        #query_str = arcpy.GetParameterAsText(9) # String - valid SQL query string
 
         sanity_max_record_count = 10000
 
@@ -549,15 +543,24 @@ def main():
             if referring_domain == r"https://www.arcgis.com":
                 token_client_type = 'referer'
 
-        # build a generic opener with the use agent spoofed
-        opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl_context))
-        opener.addheaders = [('User-agent', 'Mozilla/5.0')]
-        urllib.request.install_opener(opener)
+        # build a generic session with the use agent spoofed and retries
+        session = requests.Session()
+        retry_strategy = Retry(
+            total=max_tries,
+            backoff_factor=sleep_time,
+            status_forcelist=[429, 500, 502, 503, 504],  # Retry on these codes
+            method_whitelist=["HEAD", "GET", "OPTIONS", "POST"]  # For older urllib3; use allowed_methods in newer
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount('http://', adapter)
+        session.mount('https://', adapter)
+        session.headers.update({'User-Agent': 'Mozilla/5.0'})
+        session.verify = False  # Disable SSL verification (matches original ssl_context)
 
         token = ''
         if username and not existing_token:
             token = get_token(username=username, password=password, referer=referring_domain, adapter_name=adapter_name,
-                              client_type=token_client_type)
+                              client_type=token_client_type, session=session)
         elif existing_token:
             token = existing_token
 
@@ -568,7 +571,7 @@ def main():
         output_msg("Start the plunder! {0}".format(service_endpoint))
         output_msg("We be stashing the booty in {0}".format(output_workspace))
 
-        service_layers_to_get = get_all_the_layers(service_endpoint, tokenstring)
+        service_layers_to_get = get_all_the_layers(service_endpoint, tokenstring, session=session)
         output_msg("Blimey, {} layers for the pillagin'".format(len(service_layers_to_get)))
         for slyr in service_layers_to_get:
             count_tries = 0
@@ -580,11 +583,8 @@ def main():
             final_fc = ''
 
             output_msg("Now pillagin' yer data from {0}".format(slyr))
-            service_info_call = urllib.request.urlopen(slyr + '?f=json' + tokenstring).read()
-            if service_info_call:
-                service_info = json.loads(service_info_call, strict=False)
-            else:
-                raise Exception("'service_info_call' failed to access {0}".format(slyr))
+            response = session.get(slyr + '?f=json' + tokenstring)
+            service_info = response.json()
 
             if not service_info.get('error'):
                 # add url to info
@@ -612,18 +612,17 @@ def main():
                             ftype = field.get('type')
                             if ftype == 'esriFieldTypeOID':
                                 objectid_field = field.get('name')
+                                break
                 else:
                     output_msg("No field list - come about using {0}!".format(objectid_field))
 
                 # get count
                 if query_str == '':
-                    feature_count_call = urllib.request.urlopen(slyr + '/query?where=1%3D1&returnCountOnly=true&f=pjson' + tokenstring).read()
+                    response = session.get(slyr + '/query?where=1%3D1&returnCountOnly=true&f=pjson' + tokenstring)
                 else:
-                    feature_count_call = urllib.request.urlopen(slyr + '/query?where=' + query_str + '&returnCountOnly=true&f=pjson' + tokenstring).read()
-
-                if feature_count_call:
-                    feature_count = json.loads(feature_count_call)
-                    service_info[u'FeatureCount'] = feature_count.get('count')
+                    response = session.get(slyr + '/query?where=' + query_str + '&returnCountOnly=true&f=pjson' + tokenstring)
+                feature_count = response.json()
+                service_info[u'FeatureCount'] = feature_count.get('count')
 
                 service_name_cl = make_service_name(service_info, output_workspace, len(output_folder))
 
@@ -653,7 +652,8 @@ def main():
 
                         # extract using actual OID values is the safest way
                         feature_OIDs = None
-                        feature_OID_query = json.loads(urllib.request.urlopen(slyr + feat_OIDLIST_query).read())
+                        response = session.get(slyr + feat_OIDLIST_query)
+                        feature_OID_query = response.json()
                         if feature_OID_query and 'objectIds' in feature_OID_query:
                             feature_OIDs = feature_OID_query["objectIds"]
                         else:
@@ -692,7 +692,7 @@ def main():
                                                                                                              str(end_oid))
                                 # response is a string of json with the attributes and geometry
                                 query = slyr + feat_data_query + where_clause
-                                response = get_data(query) # expects json object
+                                response = get_data(query, session=session) # expects json object
                                 if not response.get('features'):
                                     raise ValueError("Abandon ship! Data access failed! Check what ye manag'd to plunder before failure.")
                                 else:
