@@ -550,7 +550,7 @@ def main():
             total=max_tries,
             backoff_factor=sleep_time,
             status_forcelist=[429, 500, 502, 503, 504],  # Retry on these codes
-            method_whitelist=["HEAD", "GET", "OPTIONS", "POST"]  # For older urllib3; use allowed_methods in newer
+            allowed_methods=["HEAD", "GET", "OPTIONS", "POST"]
         )
         adapter = HTTPAdapter(max_retries=retry_strategy)
         session.mount('http://', adapter)
