@@ -26,6 +26,7 @@ try:
     import requests
     from requests.adapters import HTTPAdapter
     from urllib3.util.retry import Retry
+    import urllib.parse
     import json
     import os
     import codecs
