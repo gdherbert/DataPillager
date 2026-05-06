@@ -523,6 +523,15 @@ def main():
         if output_workspace == '':
             output_workspace = os.getcwd()
 
+        if not os.path.exists(output_workspace):
+            output_msg(f"Shiver me timbers, {output_workspace} doesn't exist! Trying to create it...")
+            if output_workspace.endswith('.gdb'):
+                arcpy.CreateFileGDB_management(os.path.dirname(output_workspace), os.path.basename(output_workspace))
+            elif output_workspace.endswith('.sde'):
+                output_msg("Aaar, can't create an SDE workspace for ya, that be beyond me powers. Create it yerself and point me to it!", severity=2)
+            else:
+                # assume folder
+                os.makedirs(output_workspace)
         output_desc = arcpy.Describe(output_workspace)
         output_type = output_desc.dataType
         workspace_type = None
