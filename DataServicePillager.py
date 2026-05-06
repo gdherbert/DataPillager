@@ -88,7 +88,7 @@ def test_url(url_to_test):
     try:
         response = requests.get(url_to_test, timeout=10)  # Add timeout for reliability
         if response.status_code == 200:
-            output_msg("Ho, a successful url test: {}".format(url_to_test))
+            output_msg(f"Ho, a successful url test: {url_to_test}")
             return url_to_test
     except requests.RequestException:
         pass
@@ -187,9 +187,7 @@ def get_all_the_layers(service_endpoint, tokenstring, session=None):
     response.raise_for_status()
     service_layer_info = response.json()
     if service_layer_info.get('error'):
-        raise Exception("Gaaar, 'service_call' failed to access {0}".format(service_endpoint))
-    else:
-        raise Exception("Gaaar, 'service_call' failed to access {0}".format(service_endpoint))
+        raise Exception(f"Gaaar, 'service_call' failed to access {service_endpoint}: {service_layer_info.get('error')}")
 
     service_version = service_layer_info.get('currentVersion')
 
@@ -201,7 +199,7 @@ def get_all_the_layers(service_endpoint, tokenstring, session=None):
         catalog_folder = service_layer_info.get('folders')
         folder_list = [f for f in catalog_folder if f.lower() not in 'utilities']
         for folder_name in folder_list:
-            output_msg("Ahoy, I be searching {} for hidden treasure...".format(folder_name), severity=0)
+            output_msg(f"Ahoy, I be searching {folder_name} for hidden treasure...", severity=0)
             lyr_list = get_all_the_layers(service_endpoint + '/' + folder_name, tokenstring, session=session)
             if lyr_list:
                 service_layers_to_walk.extend(lyr_list)
@@ -314,19 +312,19 @@ def combine_data(fc_list, output_fc):
     if count_fc == 1:
         #simple case
         arcpy.Copy_management(fc_list[0], output_fc)
-        output_msg("Created {0}".format(output_fc))
+        output_msg(f"Created {output_fc}")
     else:
 
         for fc in fc_list:
             if fc_list.index(fc) == 0:
                 # append to first dataset. much faster
-                output_msg("Prepping yer first dataset {0}".format(fc))
+                output_msg(f"Prepping yer first dataset {fc}")
                 if arcpy.Exists(output_fc):
-                    output_msg("Avast! {0} exists, deleting...".format(output_fc), severity=1)
+                    output_msg(f"Avast! {output_fc} exists, deleting...", severity=1)
                     arcpy.Delete_management(output_fc)
                 
                 arcpy.Copy_management(fc, output_fc)  # create dataset to append to
-                output_msg("Created {0}".format(output_fc))
+                output_msg(f"Created {output_fc}")
                 if drop_spatial:
                     # delete the spatial index for better loading
                     output_msg("Dropping spatial index for loading performance")
@@ -347,7 +345,7 @@ def combine_data(fc_list, output_fc):
                 for row in search_rows:
                     insert_rows.insertRow(row)
                 del row, search_rows
-                output_msg("Appended {0}...".format(fc))
+                output_msg(f"Appended {fc}...")
         
         if drop_spatial:
             # recreate the spatial index
@@ -383,10 +381,10 @@ def create_layer_file(service_info, service_name, layer_source, output_folder):
             render_file = os.path.join(output_folder, service_name + "_renderer.txt")
             with open(render_file, 'w') as r_file:
                 json.dump(render_info, r_file)
-                output_msg("Yar! {0} Service renderer stashed in '{1}'".format(service_name, render_file))
+                output_msg(f"Yar! {service_name} Service renderer stashed in '{render_file}'")
 
             layer_file_name = os.path.join(output_folder, service_name + ".lyrx")
-            output_msg("Sketchin' yer layer, {}".format(layer_file_name))
+            output_msg(f"Sketchin' yer layer, {layer_file_name}")
 
             layer_temp = arcpy.MakeFeatureLayer_management(layer_source, service_name)
             arcpy.SaveToLayerFile_management(in_layer=layer_temp, out_layer=layer_file_name, is_relative_path="RELATIVE")
@@ -410,7 +408,7 @@ def create_layer_file(service_info, service_name, layer_source, output_folder):
             lyr_cim.setDefinition(symbCIM1)
 
             lyr_file.save()
-            output_msg("Stashed yer layer, {}".format(layer_file_name))
+            output_msg(f"Stashed yer layer, {layer_file_name}")
         else:
             output_msg("Gaar, no renderer t' sketch from, so no layer file fer ya")    
 
@@ -578,11 +576,11 @@ def main():
         if len(token) > 0:
             tokenstring = '&token=' + token
 
-        output_msg("Start the plunder! {0}".format(service_endpoint))
-        output_msg("We be stashing the booty in {0}".format(output_workspace))
+        output_msg(f"Start the plunder! {service_endpoint}")
+        output_msg(f"We be stashing the booty in {output_workspace}")
 
         service_layers_to_get = get_all_the_layers(service_endpoint, tokenstring, session=session)
-        output_msg("Blimey, {} layers for the pillagin'".format(len(service_layers_to_get)))
+        output_msg(f"Blimey, {len(service_layers_to_get)} layers for the pillagin'")
         for slyr in service_layers_to_get:
             count_tries = 0
             downloaded_fc_list = [] # for file merging.
@@ -592,7 +590,7 @@ def main():
             feature_count = 0
             final_fc = ''
 
-            output_msg("Now pillagin' yer data from {0}".format(slyr))
+            output_msg(f"Now pillagin' yer data from {slyr}")
             response = session.get(slyr + '?f=json' + tokenstring)
             service_info = response.json()
 
@@ -624,7 +622,7 @@ def main():
                                 objectid_field = field.get('name')
                                 break
                 else:
-                    output_msg("No field list - come about using {0}!".format(objectid_field))
+                    output_msg(f"No field list - come about using {objectid_field}!")
 
                 # get count
                 if query_str == '':
@@ -642,7 +640,7 @@ def main():
                 # write out the service info for reference
                 with open(info_file, 'w') as i_file:
                     json.dump(service_info, i_file, sort_keys=True, indent=4, separators=(',', ': '))
-                    output_msg("Yar! {0} Service info stashed in '{1}'".format(service_name_cl, info_file))
+                    output_msg(f"Yar! {service_name_cl} Service info stashed in '{info_file}'")
 
                 if supports_json:
                     try:
@@ -667,12 +665,12 @@ def main():
                         if feature_OID_query and 'objectIds' in feature_OID_query:
                             feature_OIDs = feature_OID_query["objectIds"]
                         else:
-                            output_msg("Blast, no OID values: {}".format(feature_OID_query))
+                            output_msg(f"Blast, no OID values: {feature_OID_query}")
 
                         if feature_OIDs:
                             OID_count = len(feature_OIDs)
                             sortie_count = OID_count//max_record_count + (OID_count % max_record_count > 0)
-                            output_msg("{0} records, in chunks of {1}, err, that be {2} sorties. Ready lads!".format(OID_count, max_record_count, sortie_count))
+                            output_msg(f"{OID_count} records, in chunks of {max_record_count}, err, that be {sortie_count} sorties. Ready lads!")
 
                             feature_OIDs.sort()
                             # chunk them
@@ -690,16 +688,9 @@ def main():
 
                                 # >= %3E%3D, <= %3C%3D
                                 if query_str == '':
-                                    where_clause = "&where={0}+%3E%3D+{1}+AND+{2}+%3C%3D+{3}".format(objectid_field,
-                                                                                                     str(start_oid),
-                                                                                                     objectid_field,
-                                                                                                     str(end_oid))
+                                    where_clause = f"&where={objectid_field}+%3E%3D+{start_oid}+AND+{objectid_field}+%3C%3D+{end_oid}"
                                 else:
-                                    where_clause = "&where={0}+AND+{1}+%3E%3D+{2}+AND+{3}+%3C%3D+{4}".format(query_str,
-                                                                                                             objectid_field,
-                                                                                                             str(start_oid),
-                                                                                                             objectid_field,
-                                                                                                             str(end_oid))
+                                    where_clause = f"&where={query_str}+AND+{objectid_field}+%3E%3D+{start_oid}+AND+{objectid_field}+%3C%3D+{end_oid}"
                                 # response is a string of json with the attributes and geometry
                                 query = slyr + feat_data_query + where_clause
                                 response = get_data(query, session=session) # expects json object
