@@ -26,6 +26,7 @@ try:
     import requests
     from requests.adapters import HTTPAdapter
     from urllib3.util.retry import Retry
+    from urllib3.exceptions import InsecureRequestWarning
     import urllib.parse
     import json
     import os
@@ -34,6 +35,7 @@ try:
     import time
     import itertools
     import re
+    import warnings
 except ImportError as e:
     print(e)
     sys.exit()
@@ -180,10 +182,10 @@ def get_all_the_layers(service_endpoint, tokenstring, session=None):
     """
     if session:
         response = session.get(service_endpoint + '?f=json' + tokenstring)
-        service_layer_info = response.json()
     else:
         response = requests.get(service_endpoint + '?f=json' + tokenstring)
-        service_layer_info = response.json()
+    response.raise_for_status()
+    service_layer_info = response.json()
     if service_layer_info.get('error'):
         raise Exception("Gaaar, 'service_call' failed to access {0}".format(service_endpoint))
     else:
@@ -544,7 +546,7 @@ def main():
             if referring_domain == r"https://www.arcgis.com":
                 token_client_type = 'referer'
 
-        # build a generic session with the use agent spoofed and retries
+        # build a generic session with the user agent spoofed and retries
         session = requests.Session()
         retry_strategy = Retry(
             total=max_tries,
@@ -556,7 +558,14 @@ def main():
         session.mount('http://', adapter)
         session.mount('https://', adapter)
         session.headers.update({'User-Agent': 'Mozilla/5.0'})
-        session.verify = False  # Disable SSL verification (matches original ssl_context)
+
+        if ignore_ssl_verification:
+            warnings.simplefilter('ignore', InsecureRequestWarning)
+            session.verify = False
+        elif ca_bundle_path:
+            session.verify = ca_bundle_path
+        else:
+            session.verify = True
 
         token = ''
         if username and not existing_token:
