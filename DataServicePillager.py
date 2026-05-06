@@ -8,6 +8,7 @@
 #
 # Created:     12/11/2014
 # Copyright:   (c) Grant Herbert 2014
+# Updated:    2024-06-20
 # Licence:     MIT License
 # -------------------------------------------------------------------------------
 """
@@ -480,24 +481,18 @@ def main():
 
     try:
         # arcgis toolbox parameters
-        service_endpoint = 'https://services.arcgis.com/RmCCgQtiZLDCtblq/arcgis/rest/services/eGIS_Addressing_ADDRESS_POINTSv2/FeatureServer/0'
-        output_workspace = r'X:\0_FLO_Projects\F3232.01 Crescenta Valley WD\Projects\LA_County_Data_automation\Data_Processing.gdb'
-        strict_mode = False
-        query_str = ''
-        referring_domain = ''
-        existing_token = None
-        username = None
-        password = None
-        #service_endpoint = arcpy.GetParameterAsText(0) # String - URL of Service endpoint required
-        #output_workspace = arcpy.GetParameterAsText(1) # String - gdb/folder to put the results required
-        #max_tries = arcpy.GetParameter(2) # Int - max number of retries allowed required
-        #sleep_time = arcpy.GetParameter(3) # Int - max number of retries allowed required`
-        #strict_mode = arcpy.GetParameter(4) # Bool - JSON check True/False required
-        #username = arcpy.GetParameterAsText(5) # String - username optional
-        #password = arcpy.GetParameterAsText(6) # String - password optional
-        #referring_domain = arcpy.GetParameterAsText(7) # String - url of auth domain
-        #existing_token = arcpy.GetParameterAsText(8) # String - valid token value
-        #query_str = arcpy.GetParameterAsText(9) # String - valid SQL query string
+        service_endpoint = arcpy.GetParameterAsText(0) # String - URL of Service endpoint required
+        output_workspace = arcpy.GetParameterAsText(1) # String - gdb/folder to put the results required
+        max_tries = arcpy.GetParameter(2) # Int - max number of retries allowed required
+        sleep_time = arcpy.GetParameter(3) # Int - max number of retries allowed required`
+        strict_mode = arcpy.GetParameter(4) # Bool - JSON check True/False required
+        username = arcpy.GetParameterAsText(5) # String - username optional
+        password = arcpy.GetParameterAsText(6) # String - password optional
+        referring_domain = arcpy.GetParameterAsText(7) # String - url of auth domain
+        existing_token = arcpy.GetParameterAsText(8) # String - valid token value
+        query_str = arcpy.GetParameterAsText(9) # String - valid SQL query string
+        ignore_ssl_verification = arcpy.GetParameter(10) # Bool - whether to ignore SSL verification (default True)
+        ca_bundle_path = arcpy.GetParameterAsText(11) # String - path to CA bundle for SSL verification, if not ignoring
 
         sanity_max_record_count = 10000
 
