@@ -11,6 +11,7 @@ Some of the useful features include:
 * Can download child services, just supply the parent URL.  
 * Handles super long service names.  
 * Outputs a text file containing service data for metadata purposes  
+* Will try to create the output workspace (folder or filegeodatabase) if it doesn't exist
 
 *Notes*
 * Does not download map services that do not have a json feature representation.  
@@ -24,14 +25,14 @@ Some of the useful features include:
 *  Run the script, and enter the URL to an Esri service, and the destination (filegeodatabase recommended).
 
 ### What about ArcGIS Desktop? ###
-The older version of this tool (to 1.3) supports ArcGIS Desktop, version 2.0 onwards supports Pro. For conevenience, the /Desktop subfolder contains the v1.3 ArcGIS Desktop toolbox and Python 2.7 script. You can also download release v1.3, in the DesktopPython2 branch to only get the ArcGIS Desktop version.  
+The older version of this tool (to 1.3) supports ArcGIS Desktop, version 2.0 onwards supports Pro. For convenience, the /Desktop subfolder contains the v1.3 ArcGIS Desktop toolbox and Python 2.7 script. You can also download release v1.3, in the DesktopPython2 branch to only get the ArcGIS Desktop version.  
 
 ### Requirements ###
-The Esri Arcpy library used requires a licensed install of Esri ArcGIS Pro 2.7 or above (or ArcGIS Desktop 10.5 or above for v1.3).
+The Esri Arcpy library used requires a licensed install of Esri ArcGIS Pro 3.5 or above (or ArcGIS Desktop 10.5 or above for v1.3).
 
 **IMPORTANT**
 
 The main toolbox in this repo has switched to Python 3 and ArcGIS Pro with the v2.0. release (March 2021).
 
-No further Desktop or Python 2 development is anticipated with Esri stopping desktop releases. The Desktop version should remain compatible with any DDesktop releases past 10.8.1 as long as they continue to use Python 2. 
+No further Desktop or Python 2 development is anticipated with Esri stopping desktop releases at 10.8.2. 
 
