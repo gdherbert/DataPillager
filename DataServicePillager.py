@@ -43,7 +43,6 @@ except ImportError as e:
 
 # --------
 # globals
-arcpy.env.overwriteOutput = True
 count_tries = 1
 max_tries = 5
 sleep_time = 2
@@ -441,6 +440,7 @@ def main():
         query_str = arcpy.GetParameterAsText(9) # String - valid SQL query string
         ignore_ssl_verification = arcpy.GetParameter(10) # Bool - whether to ignore SSL verification (default True)
         ca_bundle_path = arcpy.GetParameterAsText(11) # String - path to CA bundle for SSL verification, if not ignoring
+        overwrite_output = arcpy.GetParameter(12) # Bool - whether to overwrite existing output (default False)
 
         sanity_max_record_count = 10000
 
@@ -475,6 +475,7 @@ def main():
             else:
                 # assume folder
                 os.makedirs(output_workspace)
+
         output_desc = arcpy.Describe(output_workspace)
         output_type = output_desc.dataType
 
@@ -482,6 +483,9 @@ def main():
             output_folder = output_workspace
         else:
             output_folder = output_desc.path
+
+        current_overwrite = arcpy.env.overwriteOutput
+        arcpy.env.overwriteOutput = overwrite_output
 
         adapter_name = get_adapter_name(service_endpoint)
         token_client_type = 'requestip'
@@ -583,6 +587,17 @@ def main():
 
                 service_name_cl = make_service_name(service_info, output_workspace, len(output_folder))
 
+                # make the final_featureclass name and check if it exists
+                if output_type == "Folder":
+                    final_fc = os.path.join(output_workspace, service_name_cl + ".shp")
+                else:
+                    final_fc = os.path.join(output_workspace, service_name_cl)
+
+                if arcpy.Exists(final_fc) and not overwrite_output:
+                    output_msg(f"Avast! {final_fc} exists and overwrite_output is set to False. Skippin' it...", severity=1)
+                    # skip to the next item in the loop, don't try to plunder or combine data
+                    continue
+                
                 info_filename = service_name_cl + "_info.txt"
                 info_file = os.path.join(output_folder, info_filename)
 
@@ -682,20 +697,13 @@ def main():
                             raise ValueError("Aaar, plunderin' failed, feature OIDs is None")
 
                         # download complete, create a final output
-                        if output_type == "Folder":
-                            final_fc = os.path.join(output_workspace, service_name_cl + ".shp")
-                        else:
-                            final_fc = os.path.join(output_workspace, service_name_cl)
-
                         output_msg("Stashin' all the booty in '{0}'".format(final_fc))
 
                         #combine all the data
                         combine_data(fc_list=downloaded_fc_list, output_fc=final_fc)
 
-                        #create_layer_file(service_info=service_info, service_name=service_name_cl, layer_source=final_fc, output_folder=output_folder)
-
                         elapsed_time = datetime.datetime.today() - start_time
-                        output_msg("{0} plundered in {1}".format(final_fc, str(elapsed_time)))
+                        output_msg(f"{final_fc} plundered in {elapsed_time}")
 
                     except ValueError as e:
                         output_msg(str(e), severity=2)
@@ -714,6 +722,7 @@ def main():
                                     arcpy.Delete_management(fc)
                             else:
                                 output_msg("Splicin' the data failed - found {0} but expected {1}. Check {2} to see what went wrong.".format(data_count, OID_count, final_fc))
+                        
                 else:
                     # no JSON output
                     output_msg("Aaaar, ye service does not support JSON output. Can't do it.")
@@ -733,6 +742,8 @@ def main():
         output_msg(arcpy.GetMessages())
 
     finally:
+        if overwrite_output is not None: # revert to original setting
+            arcpy.env.overwriteOutput = overwrite_output
         elapsed_time = datetime.datetime.today() - start_time
         output_msg("Plunderin' done, in " + str(elapsed_time))
 
