@@ -31,13 +31,29 @@ CORE_VERSION = "2026.06.29-attachment-chunking-v2"
 
 
 class DataPillagerRunner:
+    @staticmethod
+    def _to_bool(value, default=False):
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return value != 0
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in ("true", "t", "1", "yes", "y", "on"):
+                return True
+            if lowered in ("false", "f", "0", "no", "n", "off", ""):
+                return False
+        return bool(value)
+
     def __init__(self, config, message_handler=None):
         self.config = config
         self.message_handler = message_handler
 
         self.max_tries = int(config.get("max_tries", 5))
         self.sleep_time = int(config.get("sleep_time", 2))
-        self.strict_mode = bool(config.get("strict_mode", True))
+        self.strict_mode = self._to_bool(config.get("strict_mode"), default=True)
 
         self.service_endpoint = (config.get("service_endpoint") or "").strip()
         self.output_workspace = (config.get("output_workspace") or "").strip()
@@ -47,13 +63,15 @@ class DataPillagerRunner:
         self.existing_token = (config.get("existing_token") or "").strip()
         self.query_str = (config.get("query_str") or "").strip()
 
-        self.ignore_ssl_verification = bool(config.get("ignore_ssl_verification", True))
+        self.enforce_ssl_verification = self._to_bool(config.get("enforce_ssl_verification"), default=False)
         self.ca_bundle_path = (config.get("ca_bundle_path") or "").strip()
 
-        self.create_empty_schema = bool(config.get("create_empty_schema", False))
-        self.overwrite_output = bool(config.get("overwrite_output", True))
-        self.include_attachments = bool(config.get("include_attachments", False))
-        self.clean_up_temp_attachments_data = bool(config.get("clean_up_temp_attachments_data", False))
+        self.create_empty_schema = self._to_bool(config.get("create_empty_schema"), default=False)
+        self.overwrite_output = self._to_bool(config.get("overwrite_output"), default=True)
+        self.preserve_global_ids = self._to_bool(config.get("preserve_global_ids"), default=True)
+        self.write_service_info = self._to_bool(config.get("write_service_info"), default=True)
+        self.include_attachments = self._to_bool(config.get("include_attachments"), default=False)
+        self.clean_up_temp_attachments_data = self._to_bool(config.get("clean_up_temp_attachments_data"), default=False)
 
         self.sanity_max_record_count = 10000
         self.service_output_name_tracking_list = []
@@ -61,6 +79,7 @@ class DataPillagerRunner:
 
         self.session = None
         self.user_overwrite_setting = arcpy.env.overwriteOutput
+        self.user_preserve_globalids_setting = getattr(arcpy.env, "preserveGlobalIds", None)
 
     def _emit(self, msg, severity=0):
         lines = str(msg).splitlines() or [str(msg)]
@@ -89,7 +108,7 @@ class DataPillagerRunner:
         session.mount("https://", adapter)
         session.headers.update({"User-Agent": "Mozilla/5.0"})
 
-        if self.ignore_ssl_verification:
+        if not self.enforce_ssl_verification:
             warnings.simplefilter("ignore", InsecureRequestWarning)
             session.verify = False
         elif self.ca_bundle_path:
@@ -514,10 +533,11 @@ class DataPillagerRunner:
             if arcpy.Exists(final_fc) and not self.overwrite_output:
                 return f"Skipped: {final_fc} exists and overwrite output is disabled"
 
-            info_file = os.path.join(output_folder, f"{service_name_cl}_info.txt")
-            with open(info_file, "w") as i_file:
-                json.dump(service_info, i_file, sort_keys=True, indent=4, separators=(",", ": "))
-                self._emit(f"Yar! {service_name_cl} Service info stashed in '{info_file}'")
+            if self.write_service_info:
+                info_file = os.path.join(output_folder, f"{service_name_cl}_info.txt")
+                with open(info_file, "w") as i_file:
+                    json.dump(service_info, i_file, sort_keys=True, indent=4, separators=(",", ": "))
+                    self._emit(f"Yar! {service_name_cl} Service info stashed in '{info_file}'")
 
             if not supports_json:
                 return "Failed: Service does not support JSON output"
@@ -719,6 +739,8 @@ class DataPillagerRunner:
             output_folder = self.output_workspace if self.output_type == "Folder" else output_desc.path
 
             arcpy.env.overwriteOutput = self.overwrite_output
+            if hasattr(arcpy.env, "preserveGlobalIds"):
+                arcpy.env.preserveGlobalIds = self.preserve_global_ids
 
             adapter_name = self.get_adapter_name(self.service_endpoint)
             token_client_type = "requestip"
@@ -763,6 +785,8 @@ class DataPillagerRunner:
         finally:
             if self.user_overwrite_setting is not None:
                 arcpy.env.overwriteOutput = self.user_overwrite_setting
+            if hasattr(arcpy.env, "preserveGlobalIds") and self.user_preserve_globalids_setting is not None:
+                arcpy.env.preserveGlobalIds = self.user_preserve_globalids_setting
             if self.session is not None:
                 self.session.close()
             self._emit(f"Plunderin' done, in {datetime.datetime.today() - start_time}")

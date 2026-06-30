@@ -36,7 +36,7 @@ class DataServicePillagerTool(object):
         p1 = arcpy.Parameter(
             displayName="Output Workspace (Folder, GDB or SDE)",
             name="output_workspace",
-            datatype="DEWorkspace",
+            datatype="GPString",
             parameterType="Required",
             direction="Input",
         )
@@ -114,13 +114,13 @@ class DataServicePillagerTool(object):
         )
 
         p10 = arcpy.Parameter(
-            displayName="Ignore SSL Verification",
-            name="ignore_ssl_verification",
+            displayName="Enforce SSL Verification",
+            name="enforce_ssl_verification",
             datatype="GPBoolean",
             parameterType="Required",
             direction="Input",
         )
-        p10.value = True
+        p10.value = False
 
         p11 = arcpy.Parameter(
             displayName="CA Bundle Path",
@@ -131,7 +131,7 @@ class DataServicePillagerTool(object):
         )
 
         p12 = arcpy.Parameter(
-            displayName="Create Empty Schema If No Rows",
+            displayName="Create Empty Schema If No Features",
             name="create_empty_schema",
             datatype="GPBoolean",
             parameterType="Optional",
@@ -149,36 +149,71 @@ class DataServicePillagerTool(object):
         p13.value = True
 
         p14 = arcpy.Parameter(
+            displayName="Preserve Global IDs",
+            name="preserve_global_ids",
+            datatype="GPBoolean",
+            parameterType="Optional",
+            direction="Input",
+        )
+        p14.value = True
+
+        p15 = arcpy.Parameter(
+            displayName="Write Service Info Files",
+            name="write_service_info",
+            datatype="GPBoolean",
+            parameterType="Optional",
+            direction="Input",
+        )
+        p15.value = True
+
+        p16 = arcpy.Parameter(
             displayName="Include Attachments",
             name="include_attachments",
             datatype="GPBoolean",
             parameterType="Optional",
             direction="Input",
         )
-        p14.value = False
+        p16.value = False
 
-        p15 = arcpy.Parameter(
+        p17 = arcpy.Parameter(
             displayName="Clean Up Temporary Attachment Files",
             name="clean_up_temp_attachments_data",
             datatype="GPBoolean",
             parameterType="Optional",
             direction="Input",
         )
-        p15.value = False
+        p17.value = True
 
-        params.extend([p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15])
+        params.extend([p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17])
         return params
 
     def isLicensed(self):
         return True
 
     def updateParameters(self, parameters):
-        ignore_ssl = bool(parameters[10].value) if parameters[10].value is not None else True
-        include_attachments = bool(parameters[14].value) if parameters[14].value is not None else False
+        enforce_ssl = bool(parameters[10].value) if parameters[10].value is not None else False
+        include_attachments = bool(parameters[16].value) if parameters[16].value is not None else False
+        output_workspace = (parameters[1].valueAsText or "").strip()
         has_token = bool(parameters[8].valueAsText)
 
-        parameters[11].enabled = not ignore_ssl
-        parameters[15].enabled = include_attachments
+        parameters[11].enabled = enforce_ssl
+        parameters[17].enabled = include_attachments
+
+        if not parameters[14].altered:
+            preserve_default = False
+            if output_workspace:
+                lower_path = output_workspace.lower()
+                preserve_default = lower_path.endswith(".gdb") or lower_path.endswith(".sde")
+                if os.path.exists(output_workspace):
+                    try:
+                        output_desc = arcpy.Describe(output_workspace)
+                        if output_desc.dataType in ("Workspace", "FeatureDataset"):
+                            workspace_factory = getattr(output_desc, "workspaceFactoryProgID", "") or ""
+                            if "FileGDB" in workspace_factory or "SdeWorkspace" in workspace_factory:
+                                preserve_default = True
+                    except Exception:
+                        pass
+            parameters[14].value = preserve_default
 
         if has_token:
             parameters[5].enabled = False
@@ -198,18 +233,27 @@ class DataServicePillagerTool(object):
         password = (parameters[6].valueAsText or "").strip()
         existing_token = (parameters[8].valueAsText or "").strip()
 
-        ignore_ssl = bool(parameters[10].value) if parameters[10].value is not None else True
+        enforce_ssl = bool(parameters[10].value) if parameters[10].value is not None else False
         ca_bundle_path = (parameters[11].valueAsText or "").strip()
 
         query_str = (parameters[9].valueAsText or "").strip()
 
-        include_attachments = bool(parameters[14].value) if parameters[14].value is not None else False
-        clean_up_attachments = bool(parameters[15].value) if parameters[15].value is not None else False
+        write_service_info = bool(parameters[15].value) if parameters[15].value is not None else True
+        include_attachments = bool(parameters[16].value) if parameters[16].value is not None else False
+        clean_up_attachments = bool(parameters[17].value) if parameters[17].value is not None else False
 
         if service_endpoint:
             parsed = urllib.parse.urlparse(service_endpoint)
             if parsed.scheme.lower() not in ("http", "https"):
                 parameters[0].setErrorMessage("Service endpoint must start with http:// or https://")
+
+        if output_workspace:
+            output_exists = os.path.exists(output_workspace)
+            lower_output = output_workspace.lower()
+            if not output_exists and lower_output.endswith(".sde"):
+                parameters[1].setErrorMessage("SDE workspace must already exist. Provide an existing .sde connection file.")
+            elif not output_exists and not lower_output.endswith(".sde"):
+                parameters[1].setWarningMessage("Output workspace does not exist and will be created if possible.")
 
         if max_tries is not None and int(max_tries) < 1:
             parameters[2].setErrorMessage("Max Retries must be >= 1")
@@ -230,20 +274,28 @@ class DataServicePillagerTool(object):
                     "Set it to your ArcGIS Server URL or Portal URL depending on your authentication configuration."
                 )
 
-        if not ignore_ssl and ca_bundle_path and not os.path.isfile(ca_bundle_path):
+        if enforce_ssl and ca_bundle_path and not os.path.isfile(ca_bundle_path):
             parameters[11].setErrorMessage("CA bundle path must point to an existing file")
 
         if clean_up_attachments and not include_attachments:
-            parameters[15].setErrorMessage("Cleanup can only be enabled when Include Attachments is true")
+            parameters[17].setErrorMessage("Cleanup can only be enabled when Include Attachments is true")
+
+        if include_attachments and not clean_up_attachments:
+            parameters[17].setWarningMessage(
+                "Temporary attachment files will be retained and may consume significant storage space."
+            )
 
         if output_workspace and include_attachments:
             lower_path = output_workspace.lower()
             # Attachment support requires geodatabase output.
             if not (lower_path.endswith(".sde") or lower_path.endswith(".gdb")):
-                parameters[14].setErrorMessage("Include Attachments requires a file or sde geodatabase output workspace")
+                parameters[16].setErrorMessage("Include Attachments requires a file or sde geodatabase output workspace")
 
         if query_str and "%25" in query_str:
             parameters[9].setWarningMessage("Query appears pre-encoded; enter a plain SQL where clause")
+
+        if not write_service_info:
+            parameters[15].setWarningMessage("Service info text file output is disabled; metadata sidecar files will not be created.")
 
     def execute(self, parameters, messages):
         def emit(message, severity=0):
@@ -265,12 +317,14 @@ class DataServicePillagerTool(object):
             "referring_domain": parameters[7].valueAsText,
             "existing_token": parameters[8].valueAsText,
             "query_str": parameters[9].valueAsText,
-            "ignore_ssl_verification": parameters[10].value,
+            "enforce_ssl_verification": parameters[10].value,
             "ca_bundle_path": parameters[11].valueAsText,
             "create_empty_schema": parameters[12].value,
             "overwrite_output": parameters[13].value,
-            "include_attachments": parameters[14].value,
-            "clean_up_temp_attachments_data": parameters[15].value,
+            "preserve_global_ids": parameters[14].value,
+            "write_service_info": parameters[15].value,
+            "include_attachments": parameters[16].value,
+            "clean_up_temp_attachments_data": parameters[17].value,
         }
 
         try:
