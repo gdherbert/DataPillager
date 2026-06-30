@@ -27,7 +27,7 @@ class DataPillagerError(Exception):
     """Raised for expected operational failures in the pillaging workflow."""
 
 
-CORE_VERSION = "2026.06.29-attachment-chunking-v2"
+CORE_VERSION = "v2.4.0"
 
 
 class DataPillagerRunner:
