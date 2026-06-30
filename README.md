@@ -9,15 +9,17 @@ Accepts a username and password for secured services, and has an experimental fe
 
 Some of the useful features include:  
 * Can download child services, just supply the parent URL.  
-* Handles super long service names.  
-* Outputs a text file containing service data for metadata purposes  
+* Handles super long service names by clipping them to fit Windows limitations.  
+* Option to output a text file containing service data for metadata purposes.
 * Will try to create the output workspace (folder or filegeodatabase) if it doesn't exist
+* Option to create an empty schema if no data in source.
+* Can download attachments and recreate them in the result. As it downloads the files first it is recommended you select the option to clean these up to save space.
 
 *Notes*
-* Does not download map services that do not have a json feature representation.  
+* Does not download map services that do not have a json feature representation (e.g. MapServer).  
 * Does not download tables.  
-* Downloading to a filegeodatabase or enterprise geodatabase is recommended over a folder to maintain field names etc.  
-* The ArcGIS Desktop version generates a layer file from the service symbology. This is not yet implemented in the Pro version.  
+* Downloading to a filegeodatabase or enterprise geodatabase is recommended over a folder to maintain field names etc. GlobalIDs are maintained by default, but only for FGDB/SDE output.
+* The ArcGIS Desktop version generates a layer file from the service symbology. The Pro version will not implement this.  
 
 ## How to use  ##
 * Clone the repo or download the zip file for the release you want. If in doubt download the latest zip from the main branch.   
