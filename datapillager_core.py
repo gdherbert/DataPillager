@@ -720,20 +720,6 @@ class DataPillagerRunner:
         token = ""
 
         try:
-            if not os.path.exists(self.output_workspace):
-                self._emit(f"Shiver me timbers, {self.output_workspace} doesn't exist! Trying to create it...")
-                if self.output_workspace.endswith(".gdb"):
-                    workspace_parent = os.path.dirname(self.output_workspace)
-                    if workspace_parent and not os.path.exists(workspace_parent):
-                        os.makedirs(workspace_parent)
-                    arcpy.CreateFileGDB_management(workspace_parent, os.path.basename(self.output_workspace))
-                elif self.output_workspace.endswith(".sde"):
-                    raise DataPillagerError(
-                        "Can't create an SDE workspace automatically. Create it and point the tool to it."
-                    )
-                else:
-                    os.makedirs(self.output_workspace)
-
             output_desc = arcpy.Describe(self.output_workspace)
             self.output_type = output_desc.dataType
             output_folder = self.output_workspace if self.output_type == "Folder" else output_desc.path
