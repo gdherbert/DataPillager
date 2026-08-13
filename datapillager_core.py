@@ -27,7 +27,7 @@ class DataPillagerError(Exception):
     """Raised for expected operational failures in the pillaging workflow."""
 
 
-CORE_VERSION = "v2.4.0"
+CORE_VERSION = "v2.4.1"
 
 
 class DataPillagerRunner:
