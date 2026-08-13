@@ -174,11 +174,6 @@ class DataPillagerRunner:
         if "token" in token_json:
             return token_json["token"]
 
-        if "error" in token_json:
-            self._emit(token_json["error"], severity=2)
-        elif "message" in token_json:
-            self._emit(token_json["message"], severity=2)
-
         raise DataPillagerError("Could not generate a token with the username and password provided")
 
     def execute_query(self, url, params=None):
@@ -186,11 +181,8 @@ class DataPillagerRunner:
             response = self.session.get(url, params=params, timeout=60)
             response.raise_for_status()
             resp_json = response.json()
-            if resp_json.get("error"):
-                self._emit(resp_json["error"], severity=1)
             return resp_json
         except requests.RequestException as ex:
-            self._emit(str(ex), severity=1)
             return {"error": str(ex)}
 
     def get_all_the_layers(self, service_endpoint, token):
@@ -199,9 +191,20 @@ class DataPillagerRunner:
             params["token"] = token
 
         service_layer_info = self.execute_query(service_endpoint, params=params)
-        if service_layer_info.get("error"):
+        service_error = service_layer_info.get("error")
+        if service_error:
+            if isinstance(service_error, dict) and service_error.get("code") in (498, 499):
+                raise DataPillagerError(
+                    "Authentication is required for this service. Provide a username and password or an existing token."
+                )
+
+            error_message = (
+                service_error.get("message", "Unable to access service")
+                if isinstance(service_error, dict)
+                else str(service_error)
+            )
             raise DataPillagerError(
-                f"Gaaar, service_call failed to access {service_endpoint}: {service_layer_info.get('error')}"
+                f"Unable to access service endpoint: {error_message}"
             )
 
         service_layers_to_walk = []
@@ -707,6 +710,7 @@ class DataPillagerRunner:
 
     def run(self):
         start_time = datetime.datetime.today()
+        completed = False
 
         self._emit(f"DataPillager core version: {CORE_VERSION}")
         self._emit(f"DataPillager core module: {__file__}")
@@ -767,6 +771,7 @@ class DataPillagerRunner:
             for slyr, result in slyr_tracker.items():
                 self._emit(f"{slyr} plunder result: {result}")
 
+            completed = True
             return slyr_tracker
         finally:
             if self.user_overwrite_setting is not None:
@@ -775,4 +780,5 @@ class DataPillagerRunner:
                 arcpy.env.preserveGlobalIds = self.user_preserve_globalids_setting
             if self.session is not None:
                 self.session.close()
-            self._emit(f"Plunderin' done, in {datetime.datetime.today() - start_time}")
+            if completed:
+                self._emit(f"Plunderin' done, in {datetime.datetime.today() - start_time}")

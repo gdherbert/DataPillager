@@ -337,7 +337,6 @@ class DataServicePillagerTool(object):
             runner.run()
         except DataPillagerError as ex:
             arcpy.AddError(str(ex))
-            raise arcpy.ExecuteError
         except Exception as ex:
             arcpy.AddError(f"Unexpected failure: {ex}")
             raise arcpy.ExecuteError
